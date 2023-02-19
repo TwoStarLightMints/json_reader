@@ -150,4 +150,10 @@ mod tests {
                 JsonToken::JsonObjEnd,
             JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
     }
+
+    #[test]
+    fn properly_parse_nested_obj() {
+        let json_string = String::from(r#"{{"hello"}}"#);
+        assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonObjBeg, JsonToken::JsonString(String::from("hello")), JsonToken::JsonObjEnd, JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
+    }
 }
