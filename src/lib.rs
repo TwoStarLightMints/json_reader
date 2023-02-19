@@ -1,5 +1,7 @@
 pub mod json_reader {
 
+    use std::collections::HashMap;
+
     #[derive(Debug, PartialEq, Eq)]
     pub enum JsonToken {
         JsonString(String),
@@ -94,6 +96,36 @@ pub mod json_reader {
         }
 
         return tokens;
+    }
+
+    pub fn from_json_tokens_to_data_struct(json_token_vec: Vec<JsonToken>) -> HashMap<String, JsonToken> {
+        let mut token_iter = json_token_vec.iter().peekable();
+        
+        while let Some(token) = token_iter.next() {
+            match token {
+                JsonToken::JsonObjBeg => {
+                    let mut new_vec: Vec<JsonToken> = Vec::new();
+                    token_iter.clone().for_each(|t| {
+                        match t {
+                            JsonToken::JsonKey => {new_vec.push(JsonToken::JsonKey);}
+                            JsonToken::JsonString(str) => {new_vec.push(JsonToken::JsonString(str.clone()));}
+                            JsonToken::JsonObjBeg => {new_vec.push(JsonToken::JsonObjBeg);}
+                            JsonToken::JsonObjEnd => {new_vec.push(JsonToken::JsonObjEnd);}
+                            JsonToken::JsonArrBeg => {new_vec.push(JsonToken::JsonArrBeg);}
+                            JsonToken::JsonArrEnd => {new_vec.push(JsonToken::JsonArrEnd);}
+                            JsonToken::JsonBool(val) => {new_vec.push(JsonToken::JsonBool(*val));}
+                            JsonToken::JsonNum(num) => {new_vec.push(JsonToken::JsonNum(*num));}
+                        }
+                    });
+
+                }
+                _ => (),
+            }
+        }
+
+        let mut thing: HashMap<String, JsonToken> = HashMap::new();
+        thing.insert(String::from("bruh"), JsonToken::JsonArrBeg);
+        return thing;
     }
 
 }
