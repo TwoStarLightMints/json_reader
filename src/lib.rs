@@ -20,13 +20,16 @@ pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
                 tokens.push(JsonToken::JsonString(str_content));
             }
             c if c.is_numeric() => {
+                let mut first_digit = String::from(c);
                 let num_content: String = char_inds
                     .by_ref()
                     .take_while(|(_pos, n)| { n.is_numeric() })
                     .map(|(_pos, n)| { n })
                     .collect();
 
-                tokens.push(JsonToken::JsonNum(num_content.parse::<i64>().unwrap()));
+                first_digit.push_str(num_content.as_str());
+
+                tokens.push(JsonToken::JsonNum(first_digit.parse::<i64>().unwrap()));
             }
             _ => (),
         }
@@ -41,7 +44,13 @@ mod tests {
 
     #[test]
     fn reads_basic_json_string() {
-        let json_string = String::from(r#""Hello, World!""#);
+        let json_string: String = String::from(r#""Hello, World!""#);
         assert_eq!(vec![JsonToken::JsonString(String::from("Hello, World!"))], tokenize_json_string(&json_string));
+    }
+
+    #[test]
+    fn reads_basic_json_number() {
+        let json_string: String = String::from(r#"123"#);
+        assert_eq!(vec![JsonToken::JsonNum(123)], tokenize_json_string(&json_string));
     }
 }
