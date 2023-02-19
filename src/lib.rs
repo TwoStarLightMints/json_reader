@@ -4,8 +4,10 @@ pub enum JsonToken {
     JsonString(String),
     JsonNum(i64),
     JsonBool(bool),
-    JsonArr,
-    JsonObj,
+    JsonArrBeg,
+    JsonArrEnd,
+    JsonObjBeg,
+    JsonObjEnd,
 }
 
 pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
@@ -23,6 +25,20 @@ pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
                     .collect();
 
                 tokens.push(JsonToken::JsonString(str_content));
+            }
+            // Object parsing
+            '{' => {
+                tokens.push(JsonToken::JsonObjBeg);
+            }
+            '}' => {
+                tokens.push(JsonToken::JsonObjEnd);
+            }
+            // Array parsing
+            '[' => {
+                tokens.push(JsonToken::JsonArrBeg);
+            }
+            ']' => {
+                tokens.push(JsonToken::JsonArrEnd);
             }
             // Number parsing
             c if c.is_numeric() => {
@@ -42,7 +58,7 @@ pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
                 let mut start = String::from(c);
                 let bool_content: String = char_inds
                     .by_ref()
-                    .take_while(|(_pos, c)| { *c != ',' || *c != ' ' })
+                    .take_while(|(_pos, c)| { !c.is_ascii_punctuation() && *c != ' ' })
                     .map(|(_pos, c)| { c })
                     .collect();
 
@@ -91,5 +107,11 @@ mod tests {
     fn reads_basic_json_bool() {
         let json_string: String = String::from("true");
         assert_eq!(vec![JsonToken::JsonBool(true)], tokenize_json_string(&json_string));
+    }
+
+    #[test]
+    fn reads_basic_json_obj_w_bool() {
+        let json_string: String = String::from("{ true }");
+        assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonBool(true), JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
     }
 }
