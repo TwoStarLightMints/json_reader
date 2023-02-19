@@ -1,6 +1,7 @@
 #[derive(Debug, PartialEq, Eq)]
 pub enum JsonToken {
     JsonString(String),
+    JsonNum(i64),
 }
 
 pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
@@ -17,6 +18,15 @@ pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
                     .collect();
 
                 tokens.push(JsonToken::JsonString(str_content));
+            }
+            c if c.is_numeric() => {
+                let num_content: String = char_inds
+                    .by_ref()
+                    .take_while(|(_pos, n)| { n.is_numeric() })
+                    .map(|(_pos, n)| { n })
+                    .collect();
+
+                tokens.push(JsonToken::JsonNum(num_content.parse::<i64>().unwrap()));
             }
             _ => (),
         }
