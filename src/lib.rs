@@ -1,9 +1,11 @@
-// TODO: Rework number parsing, it's stupid right now
+// TODO: Rework number and bool parsing, they are stupid right now
 #[derive(Debug, PartialEq, Eq)]
 pub enum JsonToken {
     JsonString(String),
     JsonNum(i64),
     JsonBool(bool),
+    JsonArr,
+    JsonObj,
 }
 
 pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
