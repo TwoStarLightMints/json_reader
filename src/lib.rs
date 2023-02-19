@@ -7,7 +7,7 @@ pub enum JsonToken {
 }
 
 pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
-    let mut char_inds = json_string.char_indices();
+    let mut char_inds = json_string.char_indices().peekable();
     let mut tokens: Vec<JsonToken> = Vec::new();
 
     while let Some((_pos, ch)) = char_inds.next() {
@@ -37,16 +37,22 @@ pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
             }
             // Boolean parsing
             c if c.is_alphabetic() => {
+                let mut start = String::from(c);
                 let bool_content: String = char_inds
                     .by_ref()
                     .take_while(|(_pos, c)| { *c != ',' || *c != ' ' })
                     .map(|(_pos, c)| { c })
                     .collect();
 
-                if bool_content == String::from("true") {
+                let truth = String::from("true");
+                let falth = String::from("false");
+
+                start.push_str(bool_content.as_str());
+
+                if start == truth {
                     tokens.push(JsonToken::JsonBool(true));
                 }
-                if bool_content == String::from("false") {
+                if start == falth {
                     tokens.push(JsonToken::JsonBool(false));
                 }
             }
@@ -77,5 +83,11 @@ mod tests {
     fn reads_basic_json_number_and_string() {
         let json_string: String = String::from(r#""Hello, World!" 123"#);
         assert_eq!(vec![JsonToken::JsonString(String::from("Hello, World!")), JsonToken::JsonNum(123)], tokenize_json_string(&json_string));
+    }
+
+    #[test]
+    fn reads_basic_json_bool() {
+        let json_string: String = String::from("true");
+        assert_eq!(vec![JsonToken::JsonBool(true)], tokenize_json_string(&json_string));
     }
 }
