@@ -50,9 +50,6 @@ pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
                 while let Some((_pos, ch)) = char_inds.next() {
                     number.push(ch);
 
-                    // if !char_inds.peek().unwrap().1.is_numeric() {
-                    //     break;
-                    // }
                     match char_inds.peek() {
                         Some((_pos, c)) => { if !c.is_numeric() {break;} }
                         None => (),
@@ -63,22 +60,24 @@ pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
             }
             // Boolean parsing
             c if c.is_alphabetic() => {
-                let mut start = String::from(c);
-                let bool_content: String = char_inds
-                    .by_ref()
-                    .take_while(|(_pos, c)| { !c.is_ascii_punctuation() && *c != ' ' })
-                    .map(|(_pos, c)| { c })
-                    .collect();
+                let mut value: String = String::from(c);
+
+                while let Some((_pos, ch)) = char_inds.next() {
+                    value.push(ch);
+
+                    match char_inds.peek() {
+                        Some((_pos, c)) => { if c.is_ascii_punctuation() || *c == ' ' {break;} }
+                        None => (),
+                    }
+                }
 
                 let truth = String::from("true");
                 let falth = String::from("false");
 
-                start.push_str(bool_content.as_str());
-
-                if start == truth {
+                if value == truth {
                     tokens.push(JsonToken::JsonBool(true));
                 }
-                if start == falth {
+                if value == falth {
                     tokens.push(JsonToken::JsonBool(false));
                 }
             }
