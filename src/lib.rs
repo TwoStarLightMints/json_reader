@@ -7,7 +7,7 @@ pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
     let mut char_inds = json_string.char_indices();
     let mut tokens: Vec<JsonToken> = Vec::new();
 
-    while let Some((pos, ch)) = char_inds.next() {
+    while let Some((_pos, ch)) = char_inds.next() {
         match ch {
             '"' => {
                 let str_content: String = char_inds
