@@ -1,4 +1,3 @@
-// TODO: Rework number and bool parsing, they are stupid right now
 #[derive(Debug, PartialEq, Eq)]
 pub enum JsonToken {
     JsonString(String),
@@ -19,13 +18,20 @@ pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
         match ch {
             // String parsing
             '"' => {
+                let mut last_matched: char = ch;
                 let str_content: String = char_inds
                     .by_ref()
-                    .take_while(|(_pos, c)| *c != '"')
+                    .take_while(|(_pos, c)| {
+                        if *c != '"' || last_matched == '\\' {
+                            last_matched = *c;
+                            return true;
+                        }
+                        false
+                    })
                     .map(|(_pos, c)| { c })
                     .collect();
 
-                tokens.push(JsonToken::JsonString(str_content));
+                tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
             }
             // Object parsing
             '{' => {
@@ -96,6 +102,12 @@ mod tests {
     fn reads_basic_json_string() {
         let json_string: String = String::from(r#""Hello, World!""#);
         assert_eq!(vec![JsonToken::JsonString(String::from("Hello, World!"))], tokenize_json_string(&json_string));
+    }
+
+    #[test]
+    fn reads_json_string_w_escape_character() {
+        let json_string: String = String::from(r#""Hell\"o, World!""#);
+        assert_eq!(vec![JsonToken::JsonString(String::from("Hell\"o, World!"))], tokenize_json_string(&json_string));
     }
 
     #[test]
