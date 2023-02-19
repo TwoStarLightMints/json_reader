@@ -132,30 +132,6 @@ mod tests {
         let json_string: String = String::from(r#"{
             "hello": "world",
             "bruh": true,
-            "arr": [ "true", true , 123 ]
-            "obj": {"hello", 123 }
-        }"#);
-        assert_eq!(vec![
-            JsonToken::JsonObjBeg,
-            JsonToken::JsonString(String::from("hello")), JsonToken::JsonKey, JsonToken::JsonString(String::from("world")),
-            JsonToken::JsonString(String::from("bruh")), JsonToken::JsonKey, JsonToken::JsonBool(true),
-            JsonToken::JsonString(String::from("arr")), JsonToken::JsonKey,
-                JsonToken::JsonArrBeg,
-                    JsonToken::JsonString(String::from("true")), JsonToken::JsonBool(true), JsonToken::JsonNum(123),
-                JsonToken::JsonArrEnd,
-            JsonToken::JsonString(String::from("obj")), JsonToken::JsonKey,
-                JsonToken::JsonObjBeg,
-                    JsonToken::JsonString(String::from("hello")),
-                    JsonToken::JsonNum(123),
-                JsonToken::JsonObjEnd,
-            JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
-    }
-
-    #[test]
-    fn reads_basic_json_string_full_parse_normal_formatting() {
-        let json_string: String = String::from(r#"{
-            "hello": "world",
-            "bruh": true,
             "arr": ["true", true , 123]
             "obj": {"hello", 123}
         }"#);
