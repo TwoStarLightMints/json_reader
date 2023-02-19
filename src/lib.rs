@@ -46,16 +46,20 @@ pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
             }
             // Number parsing
             c if c.is_numeric() => {
-                let mut first_digit = String::from(c);
-                let num_content: String = char_inds
-                    .by_ref()
-                    .take_while(|(_pos, n)| { n.is_numeric() })
-                    .map(|(_pos, n)| { n })
-                    .collect();
+                let mut number: String = String::from(c);
+                while let Some((_pos, ch)) = char_inds.next() {
+                    number.push(ch);
 
-                first_digit.push_str(num_content.as_str());
+                    // if !char_inds.peek().unwrap().1.is_numeric() {
+                    //     break;
+                    // }
+                    match char_inds.peek() {
+                        Some((_pos, c)) => { if !c.is_numeric() {break;} }
+                        None => (),
+                    }
+                }
 
-                tokens.push(JsonToken::JsonNum(first_digit.parse::<i64>().unwrap()));
+                tokens.push(JsonToken::JsonNum(number.parse::<i64>().unwrap()));
             }
             // Boolean parsing
             c if c.is_alphabetic() => {
@@ -145,7 +149,30 @@ mod tests {
                     JsonToken::JsonString(String::from("hello")),
                     JsonToken::JsonNum(123),
                 JsonToken::JsonObjEnd,
-            JsonToken::JsonObjEnd],
-        tokenize_json_string(&json_string));
+            JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
+    }
+
+    #[test]
+    fn reads_basic_json_string_full_parse_normal_formatting() {
+        let json_string: String = String::from(r#"{
+            "hello": "world",
+            "bruh": true,
+            "arr": ["true", true , 123]
+            "obj": {"hello", 123}
+        }"#);
+        assert_eq!(vec![
+            JsonToken::JsonObjBeg,
+            JsonToken::JsonString(String::from("hello")), JsonToken::JsonKey, JsonToken::JsonString(String::from("world")),
+            JsonToken::JsonString(String::from("bruh")), JsonToken::JsonKey, JsonToken::JsonBool(true),
+            JsonToken::JsonString(String::from("arr")), JsonToken::JsonKey,
+                JsonToken::JsonArrBeg,
+                    JsonToken::JsonString(String::from("true")), JsonToken::JsonBool(true), JsonToken::JsonNum(123),
+                JsonToken::JsonArrEnd,
+            JsonToken::JsonString(String::from("obj")), JsonToken::JsonKey,
+                JsonToken::JsonObjBeg,
+                    JsonToken::JsonString(String::from("hello")),
+                    JsonToken::JsonNum(123),
+                JsonToken::JsonObjEnd,
+            JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
     }
 }
