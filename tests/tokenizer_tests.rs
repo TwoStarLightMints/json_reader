@@ -51,13 +51,13 @@ fn reads_basic_json_string_full_parse() {
     }"#);
     assert_eq!(vec![
         JsonToken::JsonObjBeg,
-        JsonToken::JsonString(String::from("hello")), JsonToken::JsonKey, JsonToken::JsonString(String::from("world")),
-        JsonToken::JsonString(String::from("bruh")), JsonToken::JsonKey, JsonToken::JsonBool(true),
-        JsonToken::JsonString(String::from("arr")), JsonToken::JsonKey,
+        JsonToken::JsonKey(String::from("hello")), JsonToken::JsonString(String::from("world")),
+        JsonToken::JsonKey(String::from("bruh")), JsonToken::JsonBool(true),
+        JsonToken::JsonKey(String::from("arr")),
             JsonToken::JsonArrBeg,
                 JsonToken::JsonString(String::from("true")), JsonToken::JsonBool(true), JsonToken::JsonNum(123),
             JsonToken::JsonArrEnd,
-        JsonToken::JsonString(String::from("obj")), JsonToken::JsonKey,
+        JsonToken::JsonKey(String::from("obj")),
             JsonToken::JsonObjBeg,
                 JsonToken::JsonString(String::from("hello")),
                 JsonToken::JsonNum(123),
