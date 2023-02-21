@@ -50,8 +50,6 @@ pub mod json_reader {
                         .map(|(_pos, c)| { c })
                         .collect::<String>();
 
-                    println!("Delim found: {}", &delim);
-
                     if delim == ':' || last_matched == ':' {
                         tokens.push(JsonToken::JsonKey(str_content.replace("\\", "")));
                     } else {
