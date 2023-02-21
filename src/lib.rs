@@ -36,16 +36,23 @@ pub mod json_reader {
                         .collect();
                     
                     let mut delim: char = ' ';
-                    let _ = char_inds.by_ref().take_while(|(_pos, c)| {
-                        if *c != ':' || *c != ',' || *c != '{' || *c != '}' {
-                            return true;
-                        } else {
-                            delim = *c;
-                            return false;
-                        }
-                    });
+                    let _ = char_inds
+                        .by_ref()
+                        .take_while(|(_pos, c)| {
+                            println!("ENTERED IN GENERAL");
+                            if *c != ':' && *c != ',' && *c != '{' && *c != '}' {
+                                return true;
+                            } else {
+                                delim = *c;
+                                return false;
+                            }
+                        })
+                        .map(|(_pos, c)| { c })
+                        .collect::<String>();
 
-                    if delim == ':' {
+                    println!("Delim found: {}", &delim);
+
+                    if delim == ':' || last_matched == ':' {
                         tokens.push(JsonToken::JsonKey(str_content.replace("\\", "")));
                     } else {
                         tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
