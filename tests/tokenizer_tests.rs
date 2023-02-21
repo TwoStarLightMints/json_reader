@@ -1,44 +1,33 @@
 use json_reader::json_reader::*;
 
 #[test]
-fn reads_basic_json_string() {
-    let json_string: String = String::from(r#""Hello, World!""#);
-    assert_eq!(vec![JsonToken::JsonString(String::from("Hello, World!"))], tokenize_json_string(&json_string));
+fn reads_basic_json_string_w_key() {
+    let json_string: String = String::from(r#"{"string": "Hello, World!"}"#);
+    assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonKey(String::from("string")), JsonToken::JsonString(String::from("Hello, World!")), JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
 }
 
 #[test]
 fn reads_json_string_w_escape_character() {
-    let json_string: String = String::from(r#""Hell\"o, World!""#);
-    assert_eq!(vec![JsonToken::JsonString(String::from("Hell\"o, World!"))], tokenize_json_string(&json_string));
+    let json_string: String = String::from(r#"{"string": "Hell\"o, World!"}"#);
+    assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonKey(String::from("string")), JsonToken::JsonString(String::from("Hell\"o, World!")), JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
 }
 
 #[test]
 fn reads_basic_json_number() {
-    let json_string: String = String::from(r#"123"#);
-    assert_eq!(vec![JsonToken::JsonNum(123)], tokenize_json_string(&json_string));
-}
-
-#[test]
-fn reads_basic_json_number_and_string() {
-    let json_string: String = String::from(r#""Hello, World!" 123"#);
-    assert_eq!(vec![JsonToken::JsonString(String::from("Hello, World!")), JsonToken::JsonNum(123)], tokenize_json_string(&json_string));
+    let json_string: String = String::from(r#"{"number": 123}"#);
+    assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonKey(String::from("number")), JsonToken::JsonNum(123), JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
 }
 
 #[test]
 fn reads_basic_json_bool() {
-    let json_string: String = String::from("true");
-    assert_eq!(vec![JsonToken::JsonBool(true)], tokenize_json_string(&json_string));
+    let json_string: String = String::from(r#"{"boolean": true}"#);
+    assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonKey(String::from("boolean")), JsonToken::JsonBool(true), JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
 }
 
 #[test]
-fn reads_basic_json_obj_w_bool() {
-    let json_string: String = String::from("{ true }");
-    assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonBool(true), JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
-}
-#[test]
 fn reads_basic_json_arr_w_bool() {
-    let json_string: String = String::from("[ true ]");
-    assert_eq!(vec![JsonToken::JsonArrBeg, JsonToken::JsonBool(true), JsonToken::JsonArrEnd], tokenize_json_string(&json_string));
+    let json_string: String = String::from(r#"{"key":[ true ]}"#);
+    assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonKey(String::from("key")), JsonToken::JsonArrBeg, JsonToken::JsonBool(true), JsonToken::JsonArrEnd, JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
 }
 
 #[test]
@@ -67,6 +56,6 @@ fn reads_basic_json_string_full_parse() {
 
 #[test]
 fn properly_parse_nested_obj() {
-    let json_string = String::from(r#"{{"hello"}}"#);
-    assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonObjBeg, JsonToken::JsonString(String::from("hello")), JsonToken::JsonObjEnd, JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
+    let json_string = String::from(r#"{"object": {"hello": "world"}}"#);
+    assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonKey(String::from("object")), JsonToken::JsonObjBeg, JsonToken::JsonKey(String::from("hello")), JsonToken::JsonString(String::from("world")), JsonToken::JsonObjEnd, JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
 }
