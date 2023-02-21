@@ -4,14 +4,17 @@ pub mod json_reader {
 
     #[derive(Debug, PartialEq, Eq)]
     pub enum JsonToken {
+        JsonKey(String),
         JsonString(String),
         JsonNum(i64),
         JsonBool(bool),
+        JsonArr(Vec<JsonToken>),
         JsonArrBeg,
         JsonArrEnd,
+        JsonObj(HashMap<String, JsonToken>),
         JsonObjBeg,
         JsonObjEnd,
-        JsonKey(String),
+        JsonInvalid,
     }
 
     pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
@@ -58,12 +61,6 @@ pub mod json_reader {
                             None => (),
                         }
                     }
-
-                    // if delim == ':' || last_matched == ':' {
-                    //     tokens.push(JsonToken::JsonKey(str_content.replace("\\", "")));
-                    // } else {
-                    //     tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
-                    // }
                 }
                 // Object parsing
                 '{' => {
@@ -124,30 +121,34 @@ pub mod json_reader {
     }
 
     pub fn from_json_tokens_to_data_struct(json_token_vec: Vec<JsonToken>) -> HashMap<String, JsonToken> {
-        let mut token_iter = json_token_vec.iter().peekable();
+        let mut token_iter = json_token_vec.iter();
         
-        while let Some(token) = token_iter.next() {
-            match token {
+        while let Some(item) = token_iter.next() {
+            match item {
                 JsonToken::JsonObjBeg => {
-                    let mut new_vec: Vec<JsonToken> = Vec::new();
-                    token_iter.clone().for_each(|t| {
-                        match t {
-                            JsonToken::JsonKey(str) => {new_vec.push(JsonToken::JsonKey(str.clone()));}
-                            JsonToken::JsonString(str) => {new_vec.push(JsonToken::JsonString(str.clone()));}
-                            JsonToken::JsonObjBeg => {new_vec.push(JsonToken::JsonObjBeg);}
-                            JsonToken::JsonObjEnd => {new_vec.push(JsonToken::JsonObjEnd);}
-                            JsonToken::JsonArrBeg => {new_vec.push(JsonToken::JsonArrBeg);}
-                            JsonToken::JsonArrEnd => {new_vec.push(JsonToken::JsonArrEnd);}
-                            JsonToken::JsonBool(val) => {new_vec.push(JsonToken::JsonBool(*val));}
-                            JsonToken::JsonNum(num) => {new_vec.push(JsonToken::JsonNum(*num));}
-                        }
-                    });
+                    let obj: HashMap<String, JsonToken> = HashMap::new();
 
+                    from_json_tokens_to_data_struct(
+                        token_iter
+                            .map(|t| {
+
+                                if let JsonToken::JsonKey(key) = t { return JsonToken::JsonKey(key.clone()); }
+                                if let JsonToken::JsonString(str) = t { return JsonToken::JsonString(str.clone()); }
+                                if let JsonToken::JsonNum(num) = t { return JsonToken::JsonNum(*num); }
+                                if let JsonToken::JsonBool(bin) = t { return JsonToken::JsonBool(*bin); }
+                                if let JsonToken::JsonArrBeg = t { return JsonToken::JsonArrBeg; }
+                                if let JsonToken::JsonArrEnd = t { return JsonToken::JsonArrEnd; }
+                                if let JsonToken::JsonObjBeg = t { return JsonToken::JsonObjBeg; }
+                                if let JsonToken::JsonObjEnd = t { return JsonToken::JsonObjEnd; }
+                                else { return JsonToken::JsonInvalid; }
+                            })
+                            .collect::<Vec<JsonToken>>()
+                    );
                 }
-                _ => (),
             }
         }
 
+        // ------------------------------------------------------------------------------------------------------------------------------------------------------------------
         let mut thing: HashMap<String, JsonToken> = HashMap::new();
         thing.insert(String::from("bruh"), JsonToken::JsonArrBeg);
         return thing;
