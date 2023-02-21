@@ -130,6 +130,7 @@ pub mod json_reader {
 
                     from_json_tokens_to_data_struct(
                         token_iter
+                            .by_ref()
                             .map(|t| {
 
                                 if let JsonToken::JsonKey(key) = t { return JsonToken::JsonKey(key.clone()); }
