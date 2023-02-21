@@ -11,7 +11,7 @@ pub mod json_reader {
         JsonArrEnd,
         JsonObjBeg,
         JsonObjEnd,
-        JsonKey,
+        JsonKey(String),
     }
 
     pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
@@ -34,8 +34,22 @@ pub mod json_reader {
                         })
                         .map(|(_pos, c)| { c })
                         .collect();
+                    
+                    let mut delim: char = ' ';
+                    let _ = char_inds.by_ref().take_while(|(_pos, c)| {
+                        if *c != ':' || *c != ',' || *c != '{' || *c != '}' {
+                            return true;
+                        } else {
+                            delim = *c;
+                            return false;
+                        }
+                    });
 
-                    tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
+                    if delim == ':' {
+                        tokens.push(JsonToken::JsonKey(str_content.replace("\\", "")));
+                    } else {
+                        tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
+                    }
                 }
                 // Object parsing
                 '{' => {
@@ -50,9 +64,6 @@ pub mod json_reader {
                 }
                 ']' => {
                     tokens.push(JsonToken::JsonArrEnd);
-                }
-                ':' => {
-                    tokens.push(JsonToken::JsonKey);
                 }
                 // Number parsing
                 c if c.is_numeric() => {
@@ -107,7 +118,7 @@ pub mod json_reader {
                     let mut new_vec: Vec<JsonToken> = Vec::new();
                     token_iter.clone().for_each(|t| {
                         match t {
-                            JsonToken::JsonKey => {new_vec.push(JsonToken::JsonKey);}
+                            JsonToken::JsonKey(str) => {new_vec.push(JsonToken::JsonKey(str.clone()));}
                             JsonToken::JsonString(str) => {new_vec.push(JsonToken::JsonString(str.clone()));}
                             JsonToken::JsonObjBeg => {new_vec.push(JsonToken::JsonObjBeg);}
                             JsonToken::JsonObjEnd => {new_vec.push(JsonToken::JsonObjEnd);}
