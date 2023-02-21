@@ -35,26 +35,35 @@ pub mod json_reader {
                         .map(|(_pos, c)| { c })
                         .collect();
                     
-                    let mut delim: char = ' ';
-                    let _ = char_inds
-                        .by_ref()
-                        .take_while(|(_pos, c)| {
-                            println!("ENTERED IN GENERAL");
-                            if *c != ':' && *c != ',' && *c != '{' && *c != '}' {
-                                return true;
-                            } else {
-                                delim = *c;
-                                return false;
-                            }
-                        })
-                        .map(|(_pos, c)| { c })
-                        .collect::<String>();
-
-                    if delim == ':' || last_matched == ':' {
-                        tokens.push(JsonToken::JsonKey(str_content.replace("\\", "")));
-                    } else {
-                        tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
+                    if let Some((_pos, ch)) = char_inds.peek() {
+                        if *ch == ':' {
+                            tokens.push(JsonToken::JsonKey(str_content.replace("\\", "")));
+                            continue;
+                        } else if *ch == ',' || *ch == '{' || *ch == '}' {
+                            tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
+                            continue;
+                        }
                     }
+
+                    while let Some((_pos, _ch)) = char_inds.next() {
+                        match char_inds.peek() {
+                                Some((_pos, c)) => { if *c == ':' {
+                                    tokens.push(JsonToken::JsonKey(str_content.replace("\\", "")));
+                                    break;
+                                } else if *c == ',' || *c == '{' || *c == '}' {
+                                    tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
+                                    break;
+                                }
+                            }
+                            None => (),
+                        }
+                    }
+
+                    // if delim == ':' || last_matched == ':' {
+                    //     tokens.push(JsonToken::JsonKey(str_content.replace("\\", "")));
+                    // } else {
+                    //     tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
+                    // }
                 }
                 // Object parsing
                 '{' => {
