@@ -17,6 +17,10 @@ pub mod json_reader {
         JsonInvalid,
     }
 
+    pub struct JsonMap {
+        map: HashMap<String, JsonMap>,
+    }
+
     pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
         let mut char_inds = json_string.char_indices().peekable();
         let mut tokens: Vec<JsonToken> = Vec::new();
@@ -120,34 +124,74 @@ pub mod json_reader {
         return tokens;
     }
 
+    pub fn build_json_array(json_token_vec: Vec<JsonToken>) -> Vec<JsonToken> {
+        let mut token_iter = json_token_vec.iter();
+        let mut cleaned_vec: Vec<JsonToken> = Vec::new();
+
+        while let Some(item) = token_iter.next() {
+            match item {
+                JsonToken::JsonArrBeg => {
+                    let new_arr: Vec<JsonToken> = token_iter
+                        .by_ref()
+                        .take_while(|i| **i != JsonToken::JsonArrEnd)
+                        .map(|i| {
+                            match i {
+                                JsonToken::JsonKey(key) => { JsonToken::JsonKey(key.clone()) }
+                                JsonToken::JsonString(str) => { JsonToken::JsonString(str.clone()) }
+                                JsonToken::JsonNum(num) => { JsonToken::JsonNum(*num) }
+                                JsonToken::JsonBool(bin) => { JsonToken::JsonBool(*bin) }
+                                JsonToken::JsonObjBeg => { JsonToken::JsonObjBeg }
+                                JsonToken::JsonObjEnd => { JsonToken::JsonObjEnd }
+                                _ => { JsonToken::JsonInvalid }
+                            }
+                        })
+                        .collect();
+
+                    cleaned_vec.push(JsonToken::JsonArr(new_arr));
+                }
+                JsonToken::JsonKey(key) => { cleaned_vec.push(JsonToken::JsonKey(key.clone())); }
+                JsonToken::JsonString(str) => { cleaned_vec.push(JsonToken::JsonString(str.clone())); }
+                JsonToken::JsonNum(num) => { cleaned_vec.push(JsonToken::JsonNum(*num)); }
+                JsonToken::JsonBool(bin) => { cleaned_vec.push(JsonToken::JsonBool(*bin)); }
+                JsonToken::JsonObjBeg => { cleaned_vec.push(JsonToken::JsonObjBeg); }
+                JsonToken::JsonObjEnd => { cleaned_vec.push(JsonToken::JsonObjEnd); }
+                _ => ()
+            }
+        }
+
+        return cleaned_vec;
+    }
+
     pub fn from_json_tokens_to_data_struct(json_token_vec: Vec<JsonToken>) -> HashMap<String, JsonToken> {
         let mut token_iter = json_token_vec.iter();
         
-        while let Some(item) = token_iter.next() {
-            match item {
-                JsonToken::JsonObjBeg => {
-                    let obj: HashMap<String, JsonToken> = HashMap::new();
+        // while let Some(item) = token_iter.next() {
+        //     match item {
+        //         JsonToken::JsonObjBeg => {
+        //             // let obj: HashMap<String, JsonToken> = HashMap::new();
 
-                    from_json_tokens_to_data_struct(
-                        token_iter
-                            .by_ref()
-                            .map(|t| {
+        //             // from_json_tokens_to_data_struct(
+        //             //     token_iter
+        //             //         .by_ref()
+        //             //         .map(|t| {
 
-                                if let JsonToken::JsonKey(key) = t { return JsonToken::JsonKey(key.clone()); }
-                                if let JsonToken::JsonString(str) = t { return JsonToken::JsonString(str.clone()); }
-                                if let JsonToken::JsonNum(num) = t { return JsonToken::JsonNum(*num); }
-                                if let JsonToken::JsonBool(bin) = t { return JsonToken::JsonBool(*bin); }
-                                if let JsonToken::JsonArrBeg = t { return JsonToken::JsonArrBeg; }
-                                if let JsonToken::JsonArrEnd = t { return JsonToken::JsonArrEnd; }
-                                if let JsonToken::JsonObjBeg = t { return JsonToken::JsonObjBeg; }
-                                if let JsonToken::JsonObjEnd = t { return JsonToken::JsonObjEnd; }
-                                else { return JsonToken::JsonInvalid; }
-                            })
-                            .collect::<Vec<JsonToken>>()
-                    );
-                }
-            }
-        }
+        //             //             if let JsonToken::JsonKey(key) = t { return JsonToken::JsonKey(key.clone()); }
+        //             //             if let JsonToken::JsonString(str) = t { return JsonToken::JsonString(str.clone()); }
+        //             //             if let JsonToken::JsonNum(num) = t { return JsonToken::JsonNum(*num); }
+        //             //             if let JsonToken::JsonBool(bin) = t { return JsonToken::JsonBool(*bin); }
+        //             //             if let JsonToken::JsonArrBeg = t { return JsonToken::JsonArrBeg; }
+        //             //             if let JsonToken::JsonArrEnd = t { return JsonToken::JsonArrEnd; }
+        //             //             if let JsonToken::JsonObjBeg = t { return JsonToken::JsonObjBeg; }
+        //             //             if let JsonToken::JsonObjEnd = t { return JsonToken::JsonObjEnd; }
+        //             //             else { return JsonToken::JsonInvalid; }
+        //             //         })
+        //             //         .collect::<Vec<JsonToken>>()
+        //             // );
+        //         }
+        //         JsonToken::JsonArrBeg => {}
+        //         _ => {}
+        //     }
+        // }
 
         // ------------------------------------------------------------------------------------------------------------------------------------------------------------------
         let mut thing: HashMap<String, JsonToken> = HashMap::new();
