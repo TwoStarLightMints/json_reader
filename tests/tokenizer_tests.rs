@@ -59,3 +59,9 @@ fn properly_parse_nested_obj() {
     let json_string = String::from(r#"{"object": {"hello": "world"}}"#);
     assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonKey(String::from("object")), JsonToken::JsonObjBeg, JsonToken::JsonKey(String::from("hello")), JsonToken::JsonString(String::from("world")), JsonToken::JsonObjEnd, JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
 }
+
+#[test]
+fn detects_key() {
+    let key = JsonToken::JsonKey(String::from("This is a key!"));
+    assert_eq!(true, key.is_key());
+}

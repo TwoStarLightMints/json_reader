@@ -2,23 +2,28 @@ pub mod json_reader {
 
     use std::collections::HashMap;
 
-    #[derive(Debug, PartialEq, Eq)]
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub enum JsonToken {
         JsonKey(String),
         JsonString(String),
         JsonNum(i64),
         JsonBool(bool),
+        JsonObj(HashMap<String, JsonToken>),
         JsonArr(Vec<JsonToken>),
         JsonArrBeg,
         JsonArrEnd,
-        JsonObj(HashMap<String, JsonToken>),
         JsonObjBeg,
         JsonObjEnd,
         JsonInvalid,
     }
 
-    pub struct JsonMap {
-        map: HashMap<String, JsonMap>,
+    impl JsonToken {
+        pub fn is_key(&self) -> bool {
+            match self {
+                JsonToken::JsonKey(_) => { return true; }
+                _ => { return false; }
+            }
+        }
     }
 
     pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
@@ -124,79 +129,151 @@ pub mod json_reader {
         return tokens;
     }
 
-    pub fn build_json_array(json_token_vec: Vec<JsonToken>) -> Vec<JsonToken> {
-        let mut token_iter = json_token_vec.iter();
-        let mut cleaned_vec: Vec<JsonToken> = Vec::new();
 
-        while let Some(item) = token_iter.next() {
-            match item {
-                JsonToken::JsonArrBeg => {
-                    let new_arr: Vec<JsonToken> = token_iter
-                        .by_ref()
-                        .take_while(|i| **i != JsonToken::JsonArrEnd)
-                        .map(|i| {
-                            match i {
-                                JsonToken::JsonKey(key) => { JsonToken::JsonKey(key.clone()) }
-                                JsonToken::JsonString(str) => { JsonToken::JsonString(str.clone()) }
-                                JsonToken::JsonNum(num) => { JsonToken::JsonNum(*num) }
-                                JsonToken::JsonBool(bin) => { JsonToken::JsonBool(*bin) }
-                                JsonToken::JsonObjBeg => { JsonToken::JsonObjBeg }
-                                JsonToken::JsonObjEnd => { JsonToken::JsonObjEnd }
-                                _ => { JsonToken::JsonInvalid }
-                            }
-                        })
-                        .collect();
 
-                    cleaned_vec.push(JsonToken::JsonArr(new_arr));
-                }
-                JsonToken::JsonKey(key) => { cleaned_vec.push(JsonToken::JsonKey(key.clone())); }
-                JsonToken::JsonString(str) => { cleaned_vec.push(JsonToken::JsonString(str.clone())); }
-                JsonToken::JsonNum(num) => { cleaned_vec.push(JsonToken::JsonNum(*num)); }
-                JsonToken::JsonBool(bin) => { cleaned_vec.push(JsonToken::JsonBool(*bin)); }
-                JsonToken::JsonObjBeg => { cleaned_vec.push(JsonToken::JsonObjBeg); }
-                JsonToken::JsonObjEnd => { cleaned_vec.push(JsonToken::JsonObjEnd); }
-                _ => ()
+    pub fn from_json_tokens_to_json_array(json_token_vec: &Vec<JsonToken>) -> Result<JsonToken, String> {
+        let mut new_vec: Vec<JsonToken> = Vec::new();
+
+        let mut arr_inds: Vec<usize> = Vec::new();
+        let mut obj_inds: Vec<usize> = Vec::new();
+
+        json_token_vec.iter().enumerate().for_each(|(ind, val)| {
+            if *val == JsonToken::JsonArrBeg || *val == JsonToken::JsonArrEnd {
+                arr_inds.push(ind);
+            } else if *val == JsonToken::JsonObjBeg || *val == JsonToken::JsonObjEnd {
+                obj_inds.push(ind);
             }
+        });
+
+        arr_inds.sort();
+        obj_inds.sort();
+
+        if arr_inds.len() % 2 != 0 || obj_inds.len() % 2 != 0 {
+            return Err(String::from("Invalid"));
         }
 
-        return cleaned_vec;
+        while arr_inds.len() > 0 || obj_inds.len() > 0 {
+
+            let mut recorded = true; println!("INSIDE ARRAY PARSER  arrinds{:?} objinds{:?}", arr_inds, obj_inds);
+
+            for i in arr_inds[0]..arr_inds[arr_inds.len()-1] {
+                if i == 0 || i == arr_inds[arr_inds.len()-1] { continue; }
+
+                let mut val = json_token_vec[i].clone();
+                
+                if val == JsonToken::JsonObjBeg || val == JsonToken::JsonArrBeg {
+                    if !recorded {
+                        if val == JsonToken::JsonObjBeg {
+                            val = from_json_tokens_to_json_object(&json_token_vec[obj_inds[0]..obj_inds[obj_inds.len()-1]].to_vec()).unwrap();
+                            recorded = true;
+                        } else {
+                            val = from_json_tokens_to_json_array(&json_token_vec[arr_inds[0]..arr_inds[arr_inds.len()-1]].to_vec()).unwrap();
+                            recorded = true;
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+
+                if val == JsonToken::JsonObjEnd && recorded {
+                    if i == obj_inds[obj_inds.len()-2] {
+                        recorded = false;
+                    }
+                } else if val == JsonToken::JsonArrEnd && recorded {
+                    if i == arr_inds[arr_inds.len()-2] {
+                        recorded = false;
+                    }
+                }
+
+                new_vec.push(val);
+            }
+
+            if obj_inds.len() > 0 { obj_inds.remove(0); obj_inds.remove(obj_inds.len()-1); }
+            if arr_inds.len() > 0 { arr_inds.remove(0); arr_inds.remove(arr_inds.len()-1); }
+        }
+
+        println!("RETURNED VECTOR: {:?}", &new_vec);
+        return Ok(JsonToken::JsonArr(new_vec));
     }
 
-    pub fn from_json_tokens_to_data_struct(json_token_vec: Vec<JsonToken>) -> HashMap<String, JsonToken> {
-        let mut token_iter = json_token_vec.iter();
-        
-        // while let Some(item) = token_iter.next() {
-        //     match item {
-        //         JsonToken::JsonObjBeg => {
-        //             // let obj: HashMap<String, JsonToken> = HashMap::new();
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
 
-        //             // from_json_tokens_to_data_struct(
-        //             //     token_iter
-        //             //         .by_ref()
-        //             //         .map(|t| {
+    pub fn from_json_tokens_to_json_object(json_token_vec: &Vec<JsonToken>) -> Result<JsonToken, String> {
+        let mut new_map: HashMap<String, JsonToken> = HashMap::new();
 
-        //             //             if let JsonToken::JsonKey(key) = t { return JsonToken::JsonKey(key.clone()); }
-        //             //             if let JsonToken::JsonString(str) = t { return JsonToken::JsonString(str.clone()); }
-        //             //             if let JsonToken::JsonNum(num) = t { return JsonToken::JsonNum(*num); }
-        //             //             if let JsonToken::JsonBool(bin) = t { return JsonToken::JsonBool(*bin); }
-        //             //             if let JsonToken::JsonArrBeg = t { return JsonToken::JsonArrBeg; }
-        //             //             if let JsonToken::JsonArrEnd = t { return JsonToken::JsonArrEnd; }
-        //             //             if let JsonToken::JsonObjBeg = t { return JsonToken::JsonObjBeg; }
-        //             //             if let JsonToken::JsonObjEnd = t { return JsonToken::JsonObjEnd; }
-        //             //             else { return JsonToken::JsonInvalid; }
-        //             //         })
-        //             //         .collect::<Vec<JsonToken>>()
-        //             // );
-        //         }
-        //         JsonToken::JsonArrBeg => {}
-        //         _ => {}
-        //     }
-        // }
+        let mut arr_inds: Vec<usize> = Vec::new();
+        let mut obj_inds: Vec<usize> = Vec::new();
 
-        // ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        let mut thing: HashMap<String, JsonToken> = HashMap::new();
-        thing.insert(String::from("bruh"), JsonToken::JsonArrBeg);
-        return thing;
+        json_token_vec.iter().enumerate().for_each(|(ind, val)| {
+            if *val == JsonToken::JsonArrBeg || *val == JsonToken::JsonArrEnd {
+                arr_inds.push(ind);
+            } else if *val == JsonToken::JsonObjBeg || *val == JsonToken::JsonObjEnd {
+                obj_inds.push(ind);
+            }
+        });
+
+        arr_inds.sort();
+        obj_inds.sort();
+
+        if arr_inds.len() % 2 != 0 || obj_inds.len() % 2 != 0 {
+            return Err(String::from("Invalid"));
+        }
+
+        while arr_inds.len() > 0 || obj_inds.len() > 0 {
+
+            let mut recorded = false;
+            let mut is_obj = false;
+            let mut is_arr = false;
+            
+            for i in obj_inds[0]..obj_inds[obj_inds.len()-1] {
+                println!("CURRENT INDEX: {}", i);
+                if i == 0 || i == obj_inds[obj_inds.len()-1] { continue; }
+
+                let mut val = json_token_vec[i].clone();
+                
+                println!("arr {:?} : obj {:?}", arr_inds, obj_inds);
+                if !recorded {
+                    if val == JsonToken::JsonObjBeg && obj_inds.len() > 0 {
+                        val = from_json_tokens_to_json_object(&json_token_vec[obj_inds[1]..=obj_inds[obj_inds.len()-2]].to_vec()).unwrap();
+                        recorded = true;
+                        is_obj = true;
+                    } else if val == JsonToken::JsonArrBeg && arr_inds.len() > 0 {
+                        println!("FOUND ARR {:?}", &json_token_vec[arr_inds[0]..=arr_inds[arr_inds.len()-1]]);
+                        val = from_json_tokens_to_json_array(&json_token_vec[arr_inds[0]..=arr_inds[arr_inds.len()-1]].to_vec()).unwrap();
+                        recorded = true;
+                        is_arr = true;
+                    }
+                } else {
+                    continue;
+                }
+
+                if val == JsonToken::JsonObjEnd && recorded {
+                    if i == obj_inds[obj_inds.len()-2] {
+                        recorded = false;
+                    }
+                } else if val == JsonToken::JsonArrEnd && recorded {
+                    if i == arr_inds[arr_inds.len()-2] {
+                        recorded = false; println!("FOUND END ARR");
+                    }
+                }
+
+                let mut key = String::new();
+                if let JsonToken::JsonKey(val) = &json_token_vec[i] { key = val.clone(); }
+
+                println!("val {:?}", &val);
+                if json_token_vec[i].is_key() { new_map.insert(key.clone(), json_token_vec[i+1].clone()); } else { new_map.insert(key.clone(), val); }
+            }
+
+            println!("obj len {}, is obj {}", obj_inds.len(), is_obj);
+
+            if arr_inds.len() > 0 && is_arr { arr_inds.remove(0); arr_inds.remove(arr_inds.len()-1); println!("Removed array"); }
+            if obj_inds.len() > 0 && is_obj { obj_inds.remove(0); obj_inds.remove(obj_inds.len()-1); println!("Removed object"); }
+        }
+
+        return Ok(JsonToken::JsonObj(new_map));
     }
 
 }
