@@ -31,6 +31,41 @@ pub mod json_reader {
                 _ => true,
             }
         }
+
+        pub fn as_str(&self) -> &str {
+            match self {
+                JsonToken::JsonString(str) => { str as &str }
+                _ => unreachable!(),
+            }
+        }
+
+        pub fn as_int(&self) -> i64 {
+            match self {
+                JsonToken::JsonNum(num) => { *num }
+                _ => unreachable!(),
+            }
+        }
+
+        pub fn as_bool(&self) -> bool {
+            match self {
+                JsonToken::JsonBool(bin) => { *bin }
+                _ => unreachable!(),
+            }
+        }
+
+        pub fn as_map(&self) -> HashMap<String, JsonToken> {
+            match self {
+                JsonToken::JsonObj(map) => { map.clone() }
+                _ => unreachable!(),
+            }
+        }
+
+        pub fn as_vec(&self) -> Vec<JsonToken> {
+            match self {
+                JsonToken::JsonArr(vector) => { vector.clone() }
+                _ => unreachable!(),
+            }
+        }
     }
 
     pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
