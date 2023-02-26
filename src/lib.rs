@@ -246,17 +246,30 @@ pub mod json_reader {
             let mut key = String::new();
             if let JsonToken::JsonKey(val) = &json_token_vec[i] { key = val.clone(); }
             
+            println!("{} {:?}", nesting, &json_token_vec[i+1]);
+
             if json_token_vec[i].is_key() && nesting <= 0 {
                 if json_token_vec[i+1].is_value() {
                     new_map.insert(key.clone(), json_token_vec[i+1].clone());
                 } else {
                     match json_token_vec[i+1] {
-                        JsonToken::JsonArrBeg => { new_map.insert(key.clone(), from_json_tokens_to_json_array(&json_token_vec[arr_inds[0]..=arr_inds[arr_inds.len()-1]].to_vec()).unwrap()); nesting += 1; }
-                        JsonToken::JsonObjBeg => { new_map.insert(key.clone(), from_json_tokens_to_json_object(&json_token_vec[obj_inds[1]..=obj_inds[obj_inds.len()-2]].to_vec()).unwrap()); nesting += 1; }
-                        JsonToken::JsonArrEnd => { nesting -= 1; }
-                        JsonToken::JsonObjEnd => { nesting -= 1; }
+                        JsonToken::JsonArrBeg => {
+                            new_map.insert(key.clone(), from_json_tokens_to_json_array(&json_token_vec[arr_inds[0]..=arr_inds[arr_inds.len()-1]].to_vec()).unwrap());
+                            nesting += 1;
+                        }
+                        JsonToken::JsonObjBeg => {
+                            println!("FOUND NESTED OBJECT");
+                            new_map.insert(key.clone(), from_json_tokens_to_json_object(&json_token_vec[obj_inds[1]..=obj_inds[obj_inds.len()-2]].to_vec()).unwrap());
+                            nesting += 1;
+                        }
                         _ => (),
                     }
+                }
+            } else if nesting > 0 {
+                match json_token_vec[i] {
+                    JsonToken::JsonArrEnd => { nesting -= 1; }
+                    JsonToken::JsonObjEnd => { nesting -= 1; }
+                    _ => (),
                 }
             }
         }
