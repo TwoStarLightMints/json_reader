@@ -24,6 +24,13 @@ pub mod json_reader {
                 _ => { return false; }
             }
         }
+
+        pub fn is_value(&self) -> bool {
+            match self {
+                JsonToken::JsonKey(_) | JsonToken::JsonArrBeg | JsonToken::JsonArrEnd | JsonToken::JsonObjBeg | JsonToken::JsonObjEnd | JsonToken::JsonInvalid => false,
+                _ => true,
+            }
+        }
     }
 
     pub fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
@@ -152,47 +159,25 @@ pub mod json_reader {
             return Err(String::from("Invalid"));
         }
 
-        while arr_inds.len() > 0 || obj_inds.len() > 0 {
+        let mut nesting = 0;
 
-            let mut recorded = true; println!("INSIDE ARRAY PARSER  arrinds{:?} objinds{:?}", arr_inds, obj_inds);
+        for i in arr_inds[0]..arr_inds[arr_inds.len()-1] {
+            
+            if i == 0 || i == arr_inds[arr_inds.len()-1] { continue; }
 
-            for i in arr_inds[0]..arr_inds[arr_inds.len()-1] {
-                if i == 0 || i == arr_inds[arr_inds.len()-1] { continue; }
-
-                let mut val = json_token_vec[i].clone();
-                
-                if val == JsonToken::JsonObjBeg || val == JsonToken::JsonArrBeg {
-                    if !recorded {
-                        if val == JsonToken::JsonObjBeg {
-                            val = from_json_tokens_to_json_object(&json_token_vec[obj_inds[0]..obj_inds[obj_inds.len()-1]].to_vec()).unwrap();
-                            recorded = true;
-                        } else {
-                            val = from_json_tokens_to_json_array(&json_token_vec[arr_inds[0]..arr_inds[arr_inds.len()-1]].to_vec()).unwrap();
-                            recorded = true;
-                        }
-                    } else {
-                        continue;
-                    }
+            if json_token_vec[i].is_value() && nesting <= 0 {
+                new_vec.push(json_token_vec[i].clone());
+            } else {
+                match json_token_vec[i] {
+                    JsonToken::JsonArrBeg => { new_vec.push(from_json_tokens_to_json_array(&json_token_vec[arr_inds[1]..=arr_inds[arr_inds.len()-2]].to_vec()).unwrap()); nesting += 1; }
+                    JsonToken::JsonObjBeg => { new_vec.push(from_json_tokens_to_json_object(&json_token_vec[obj_inds[0]..=obj_inds[obj_inds.len()-1]].to_vec()).unwrap()); nesting += 1; }
+                    JsonToken::JsonArrEnd => { nesting -= 1; }
+                    JsonToken::JsonObjEnd => { nesting -= 1; }
+                    _ => (),
                 }
-
-                if val == JsonToken::JsonObjEnd && recorded {
-                    if i == obj_inds[obj_inds.len()-2] {
-                        recorded = false;
-                    }
-                } else if val == JsonToken::JsonArrEnd && recorded {
-                    if i == arr_inds[arr_inds.len()-2] {
-                        recorded = false;
-                    }
-                }
-
-                new_vec.push(val);
             }
-
-            if obj_inds.len() > 0 { obj_inds.remove(0); obj_inds.remove(obj_inds.len()-1); }
-            if arr_inds.len() > 0 { arr_inds.remove(0); arr_inds.remove(arr_inds.len()-1); }
         }
 
-        println!("RETURNED VECTOR: {:?}", &new_vec);
         return Ok(JsonToken::JsonArr(new_vec));
     }
 
@@ -222,55 +207,28 @@ pub mod json_reader {
             return Err(String::from("Invalid"));
         }
 
-        while arr_inds.len() > 0 || obj_inds.len() > 0 {
-
-            let mut recorded = false;
-            let mut is_obj = false;
-            let mut is_arr = false;
+        let mut nesting = 0;
             
-            for i in obj_inds[0]..obj_inds[obj_inds.len()-1] {
-                println!("CURRENT INDEX: {}", i);
-                if i == 0 || i == obj_inds[obj_inds.len()-1] { continue; }
+        for i in obj_inds[0]..obj_inds[obj_inds.len()-1] {
+            
+            if i == 0 || i == obj_inds[obj_inds.len()-1] { continue; }
 
-                let mut val = json_token_vec[i].clone();
-                
-                println!("arr {:?} : obj {:?}", arr_inds, obj_inds);
-                if !recorded {
-                    if val == JsonToken::JsonObjBeg && obj_inds.len() > 0 {
-                        val = from_json_tokens_to_json_object(&json_token_vec[obj_inds[1]..=obj_inds[obj_inds.len()-2]].to_vec()).unwrap();
-                        recorded = true;
-                        is_obj = true;
-                    } else if val == JsonToken::JsonArrBeg && arr_inds.len() > 0 {
-                        println!("FOUND ARR {:?}", &json_token_vec[arr_inds[0]..=arr_inds[arr_inds.len()-1]]);
-                        val = from_json_tokens_to_json_array(&json_token_vec[arr_inds[0]..=arr_inds[arr_inds.len()-1]].to_vec()).unwrap();
-                        recorded = true;
-                        is_arr = true;
-                    }
+            let mut key = String::new();
+            if let JsonToken::JsonKey(val) = &json_token_vec[i] { key = val.clone(); }
+            
+            if json_token_vec[i].is_key() && nesting <= 0 {
+                if json_token_vec[i+1].is_value() {
+                    new_map.insert(key.clone(), json_token_vec[i+1].clone());
                 } else {
-                    continue;
-                }
-
-                if val == JsonToken::JsonObjEnd && recorded {
-                    if i == obj_inds[obj_inds.len()-2] {
-                        recorded = false;
-                    }
-                } else if val == JsonToken::JsonArrEnd && recorded {
-                    if i == arr_inds[arr_inds.len()-2] {
-                        recorded = false; println!("FOUND END ARR");
+                    match json_token_vec[i+1] {
+                        JsonToken::JsonArrBeg => { new_map.insert(key.clone(), from_json_tokens_to_json_array(&json_token_vec[arr_inds[0]..=arr_inds[arr_inds.len()-1]].to_vec()).unwrap()); nesting += 1; }
+                        JsonToken::JsonObjBeg => { new_map.insert(key.clone(), from_json_tokens_to_json_object(&json_token_vec[obj_inds[1]..=obj_inds[obj_inds.len()-2]].to_vec()).unwrap()); nesting += 1; }
+                        JsonToken::JsonArrEnd => { nesting -= 1; }
+                        JsonToken::JsonObjEnd => { nesting -= 1; }
+                        _ => (),
                     }
                 }
-
-                let mut key = String::new();
-                if let JsonToken::JsonKey(val) = &json_token_vec[i] { key = val.clone(); }
-
-                println!("val {:?}", &val);
-                if json_token_vec[i].is_key() { new_map.insert(key.clone(), json_token_vec[i+1].clone()); } else { new_map.insert(key.clone(), val); }
             }
-
-            println!("obj len {}, is obj {}", obj_inds.len(), is_obj);
-
-            if arr_inds.len() > 0 && is_arr { arr_inds.remove(0); arr_inds.remove(arr_inds.len()-1); println!("Removed array"); }
-            if obj_inds.len() > 0 && is_obj { obj_inds.remove(0); obj_inds.remove(obj_inds.len()-1); println!("Removed object"); }
         }
 
         return Ok(JsonToken::JsonObj(new_map));
