@@ -74,6 +74,20 @@ pub mod json_reader {
 
         while let Some((_pos, ch)) = char_inds.next() {
             match ch {
+                // Object parsing
+                '{' => {
+                    tokens.push(JsonToken::JsonObjBeg);
+                }
+                '}' => {
+                    tokens.push(JsonToken::JsonObjEnd);
+                }
+                // Array parsing
+                '[' => {
+                    tokens.push(JsonToken::JsonArrBeg);
+                }
+                ']' => {
+                    tokens.push(JsonToken::JsonArrEnd);
+                }
                 // String parsing
                 '"' => {
                     let mut last_matched: char = ch;
@@ -113,20 +127,7 @@ pub mod json_reader {
                         }
                     }
                 }
-                // Object parsing
-                '{' => {
-                    tokens.push(JsonToken::JsonObjBeg);
-                }
-                '}' => {
-                    tokens.push(JsonToken::JsonObjEnd);
-                }
-                // Array parsing
-                '[' => {
-                    tokens.push(JsonToken::JsonArrBeg);
-                }
-                ']' => {
-                    tokens.push(JsonToken::JsonArrEnd);
-                }
+                
                 // Number parsing
                 c if c.is_numeric() => {
                     let mut number: String = String::from(c);
