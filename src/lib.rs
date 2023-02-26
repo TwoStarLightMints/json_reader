@@ -204,8 +204,14 @@ pub mod json_reader {
                 new_vec.push(json_token_vec[i].clone());
             } else {
                 match json_token_vec[i] {
-                    JsonToken::JsonArrBeg => { new_vec.push(from_json_tokens_to_json_array(&json_token_vec[arr_inds[1]..=arr_inds[arr_inds.len()-2]].to_vec()).unwrap()); nesting += 1; }
-                    JsonToken::JsonObjBeg => { new_vec.push(from_json_tokens_to_json_object(&json_token_vec[obj_inds[0]..=obj_inds[obj_inds.len()-1]].to_vec()).unwrap()); nesting += 1; }
+                    JsonToken::JsonArrBeg => {
+                        new_vec.push(from_json_tokens_to_json_array(&json_token_vec[arr_inds[1]..=arr_inds[arr_inds.len()-2]].to_vec()).unwrap());
+                        nesting += 1;
+                    }
+                    JsonToken::JsonObjBeg => {
+                        new_vec.push(from_json_tokens_to_json_object(&json_token_vec[obj_inds[0]..=obj_inds[obj_inds.len()-1]].to_vec()).unwrap());
+                        nesting += 1;
+                    }
                     JsonToken::JsonArrEnd => { nesting -= 1; }
                     JsonToken::JsonObjEnd => { nesting -= 1; }
                     _ => (),
@@ -245,8 +251,6 @@ pub mod json_reader {
 
             let mut key = String::new();
             if let JsonToken::JsonKey(val) = &json_token_vec[i] { key = val.clone(); }
-            
-            println!("{} {:?}", nesting, &json_token_vec[i+1]);
 
             if json_token_vec[i].is_key() && nesting <= 0 {
                 if json_token_vec[i+1].is_value() {
@@ -258,7 +262,6 @@ pub mod json_reader {
                             nesting += 1;
                         }
                         JsonToken::JsonObjBeg => {
-                            println!("FOUND NESTED OBJECT");
                             new_map.insert(key.clone(), from_json_tokens_to_json_object(&json_token_vec[obj_inds[1]..=obj_inds[obj_inds.len()-2]].to_vec()).unwrap());
                             nesting += 1;
                         }
