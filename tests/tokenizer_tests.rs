@@ -61,6 +61,12 @@ fn properly_parse_nested_obj() {
 }
 
 #[test]
+fn properly_parse_nested_arr() {
+    let json_string = String::from(r#"{ "nested-array": "does it work?", "arr": [123, [321, true]] }"#);
+    assert_eq!(vec![JsonToken::JsonObjBeg, JsonToken::JsonKey(String::from("arr")), JsonToken::JsonArrBeg, JsonToken::JsonNum(123), JsonToken::JsonArrBeg, JsonToken::JsonNum(321), JsonToken::JsonBool(true), JsonToken::JsonArrEnd, JsonToken::JsonArrEnd, JsonToken::JsonObjEnd], tokenize_json_string(&json_string));
+}
+
+#[test]
 fn detects_key() {
     let key = JsonToken::JsonKey(String::from("This is a key!"));
     assert_eq!(true, key.is_key());
