@@ -99,7 +99,7 @@ fn converts_tokens_w_nested_array_to_hashmap() {
                     JsonToken::JsonNum(123),
                     JsonToken::JsonBool(false),
                     JsonToken::JsonArrBeg,
-                        JsonToken::JsonNum(123),
+                        JsonToken::JsonNum(321),
                         JsonToken::JsonBool(false),
                     JsonToken::JsonArrEnd,
                 JsonToken::JsonArrEnd,
@@ -110,7 +110,7 @@ fn converts_tokens_w_nested_array_to_hashmap() {
     json_map.insert(String::from("hello"), JsonToken::JsonString(String::from("world")));
     json_map.insert(String::from("num"), JsonToken::JsonNum(123));
     json_map.insert(String::from("bool"), JsonToken::JsonBool(true));
-    json_map.insert(String::from("array"), JsonToken::JsonArr(vec![JsonToken::JsonNum(123), JsonToken::JsonBool(false), JsonToken::JsonArr(vec![JsonToken::JsonNum(123), JsonToken::JsonBool(false)])]));
+    json_map.insert(String::from("array"), JsonToken::JsonArr(vec![JsonToken::JsonNum(123), JsonToken::JsonBool(false), JsonToken::JsonArr(vec![JsonToken::JsonNum(321), JsonToken::JsonBool(false)])]));
 
     let created_map = match from_json_tokens_to_json_object(&json_token_vec).unwrap() {
         JsonToken::JsonObj(map) => map,
