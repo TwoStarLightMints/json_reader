@@ -73,6 +73,7 @@ pub mod json_reader {
         let mut tokens: Vec<JsonToken> = Vec::new();
 
         while let Some((_pos, ch)) = char_inds.next() {
+            println!("{}", &ch);
             match ch {
                 // Object parsing
                 '{' => {
@@ -118,7 +119,7 @@ pub mod json_reader {
                                 Some((_pos, c)) => { if *c == ':' {
                                     tokens.push(JsonToken::JsonKey(str_content.replace("\\", "")));
                                     break;
-                                } else if *c == ',' || *c == '{' || *c == '}' {
+                                } else if *c == ',' || *c == '{' || *c == '}' || *c == '[' || *c == ']' {
                                     tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
                                     break;
                                 }
