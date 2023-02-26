@@ -30,3 +30,6 @@ Compiling your_program_here v0.1.0 (C:\path\to\your_program_here)
 
 # Notes
 There is what I would consider a redundant module declaration. I put this here because I was unable to import the crate into another rust project without getting a weird errror and adding the declaration somehow fixed it. If anyone knows how to fix this please let me know.
+
+# Resources
+A major help for this project was [this article by Peter Malmgren](https://petermalmgren.com/token-scanning-with-rust/). Without it I would have been lost as to how I should go about starting the project in the first place.
