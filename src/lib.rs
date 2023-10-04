@@ -24,13 +24,14 @@ impl fmt::Display for InvalidJson {
 //
 // ====================================================
 
-trait JsonToken {
+pub trait JsonToken: std::fmt::Debug {
     fn is_key(&self) -> bool;
     fn is_seperator(&self) -> bool;
     fn is_container(&self) -> bool;
     fn is_value(&self) -> bool;
 }
 
+#[derive(Debug)]
 struct JsonKey {
     // This will only ever contain a string so may as well be a struct
     key: String,
@@ -57,6 +58,7 @@ impl JsonToken for JsonKey {
     }
 }
 
+#[derive(Debug)]
 enum JsonSeperator {
     // Used to demarcate the beginning and end of statements in JSON
     JsonArrBeg,
@@ -81,6 +83,7 @@ impl JsonToken for JsonSeperator {
     }
 }
 
+#[derive(Debug)]
 enum JsonContainer {
     // This will be the container for all JSON containers
     JsonObj(HashMap<JsonKey, Box<dyn JsonToken>>),
@@ -102,10 +105,11 @@ impl JsonToken for JsonContainer {
     }
 }
 
+#[derive(Debug)]
 enum JsonValue {
     // Wrapper for values in that come from JSON
     JString(String),
-    JsonNum(i64),
+    JsonNum(f64),
     JsonBool(bool),
 }
 
@@ -923,11 +927,12 @@ mod tests {
     }
 }
 
-fn testing_new_impl(json_string: &String) -> Vec<Box<dyn JsonToken>> {
+pub fn testing_new_impl(json_string: &String) -> Vec<Box<dyn JsonToken>> {
     let mut char_inds = json_string.char_indices().peekable();
     let mut tokens: Vec<Box<dyn JsonToken>> = Vec::new();
 
     while let Some((_pos, ch)) = char_inds.next() {
+        println!("{ch}");
         match ch {
             // Object parsing
             '{' => {
@@ -988,14 +993,17 @@ fn testing_new_impl(json_string: &String) -> Vec<Box<dyn JsonToken>> {
             }
 
             // Number parsing
-            c if c.is_numeric() => {
+            c if c.is_numeric() || c == '-' => {
                 let mut number: String = String::from(c);
                 while let Some((_pos, ch)) = char_inds.next() {
-                    number.push(ch);
+                    if ch.is_numeric() || ch == '.' {
+                        // This case needs to be here so that a little error i found doesn't happen
+                        number.push(ch);
+                    }
 
                     match char_inds.peek() {
                         Some((_pos, c)) => {
-                            if !c.is_numeric() {
+                            if !c.is_numeric() && !(*c == '.') {
                                 break;
                             }
                         }
@@ -1003,7 +1011,7 @@ fn testing_new_impl(json_string: &String) -> Vec<Box<dyn JsonToken>> {
                     }
                 }
 
-                tokens.push(Box::new(JsonValue::JsonNum(number.parse::<i64>().unwrap())));
+                tokens.push(Box::new(JsonValue::JsonNum(number.parse::<f64>().unwrap())));
             }
             // Boolean parsing
             c if c.is_alphabetic() => {
