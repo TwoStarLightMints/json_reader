@@ -18,12 +18,123 @@ impl fmt::Display for InvalidJson {
     }
 }
 
+// ====================================================
+//
+// New token implementation
+//
+// ====================================================
+
 trait JsonToken {
-    fn is_key(&self);
-    fn is_value(&self);
-    fn is_container(&self);
-    fn is_seperator(&self);
+    fn is_key(&self) -> bool;
+    fn is_seperator(&self) -> bool;
+    fn is_container(&self) -> bool;
+    fn is_value(&self) -> bool;
 }
+
+struct JsonKey {
+    // This will only ever contain a string so may as well be a struct
+    key: String,
+}
+
+impl JsonKey {
+    fn new(key: String) -> Self {
+        Self { key }
+    }
+}
+
+impl JsonToken for JsonKey {
+    fn is_key(&self) -> bool {
+        true
+    }
+    fn is_seperator(&self) -> bool {
+        false
+    }
+    fn is_container(&self) -> bool {
+        false
+    }
+    fn is_value(&self) -> bool {
+        false
+    }
+}
+
+enum JsonSeperator {
+    // Used to demarcate the beginning and end of statements in JSON
+    JsonArrBeg,
+    JsonArrEnd,
+    JsonObjBeg,
+    JsonObjEnd,
+    JsonComma,
+}
+
+impl JsonToken for JsonSeperator {
+    fn is_key(&self) -> bool {
+        false
+    }
+    fn is_seperator(&self) -> bool {
+        true
+    }
+    fn is_container(&self) -> bool {
+        false
+    }
+    fn is_value(&self) -> bool {
+        false
+    }
+}
+
+enum JsonContainer {
+    // This will be the container for all JSON containers
+    JsonObj(HashMap<JsonKey, Box<dyn JsonToken>>),
+    JsonArr(Vec<Box<dyn JsonToken>>),
+}
+
+impl JsonToken for JsonContainer {
+    fn is_key(&self) -> bool {
+        false
+    }
+    fn is_seperator(&self) -> bool {
+        false
+    }
+    fn is_container(&self) -> bool {
+        true
+    }
+    fn is_value(&self) -> bool {
+        false
+    }
+}
+
+enum JsonValue {
+    // Wrapper for values in that come from JSON
+    JString(String),
+    JsonNum(i64),
+    JsonBool(bool),
+}
+
+impl JsonToken for JsonValue {
+    fn is_key(&self) -> bool {
+        false
+    }
+    fn is_seperator(&self) -> bool {
+        false
+    }
+    fn is_container(&self) -> bool {
+        false
+    }
+    fn is_value(&self) -> bool {
+        true
+    }
+}
+
+// ====================================================
+//
+// New token implementation
+//
+// ====================================================
+
+// ====================================================
+//
+// Old token implementation
+//
+// ====================================================
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum JsonTokenOld {
@@ -99,6 +210,12 @@ impl JsonTokenOld {
         }
     }
 }
+
+// ====================================================
+//
+// Old token implementation
+//
+// ====================================================
 
 fn tokenize_json_string(json_string: &String) -> Vec<JsonTokenOld> {
     let mut char_inds = json_string.char_indices().peekable();
@@ -804,4 +921,112 @@ mod tests {
 
         assert_eq!(json_map, created_map);
     }
+}
+
+fn testing_new_impl(json_string: &String) -> Vec<Box<dyn JsonToken>> {
+    let mut char_inds = json_string.char_indices().peekable();
+    let mut tokens: Vec<Box<dyn JsonToken>> = Vec::new();
+
+    while let Some((_pos, ch)) = char_inds.next() {
+        match ch {
+            // Object parsing
+            '{' => {
+                tokens.push(Box::new(JsonSeperator::JsonObjBeg));
+            }
+            '}' => {
+                tokens.push(Box::new(JsonSeperator::JsonObjEnd));
+            }
+            // Array parsing
+            '[' => {
+                tokens.push(Box::new(JsonSeperator::JsonArrBeg));
+            }
+            ']' => {
+                tokens.push(Box::new(JsonSeperator::JsonArrEnd));
+            }
+            // String parsing
+            '"' => {
+                let mut last_matched: char = ch;
+                let str_content: String = char_inds
+                    .by_ref()
+                    .take_while(|(_pos, c)| {
+                        if *c != '"' || last_matched == '\\' {
+                            last_matched = *c;
+                            return true;
+                        }
+                        false
+                    })
+                    .map(|(_pos, c)| c)
+                    .collect();
+
+                if let Some((_pos, ch)) = char_inds.peek() {
+                    if *ch == ':' {
+                        tokens.push(Box::new(JsonKey::new(str_content.replace("\\", ""))));
+                        continue;
+                    } else if *ch == ',' || *ch == '{' || *ch == '}' || *ch == '[' || *ch == ']' {
+                        tokens.push(Box::new(JsonValue::JString(str_content.replace("\\", ""))));
+                        continue;
+                    }
+                }
+
+                while let Some((_pos, _ch)) = char_inds.next() {
+                    match char_inds.peek() {
+                        Some((_pos, c)) => {
+                            if *c == ':' {
+                                tokens.push(Box::new(JsonKey::new(str_content.replace("\\", ""))));
+                                break;
+                            } else if *c == ',' || *c == '{' || *c == '}' || *c == '[' || *c == ']'
+                            {
+                                tokens.push(Box::new(JsonValue::JString(
+                                    str_content.replace("\\", ""),
+                                )));
+                                break;
+                            }
+                        }
+                        None => (),
+                    }
+                }
+            }
+
+            // Number parsing
+            c if c.is_numeric() => {
+                let mut number: String = String::from(c);
+                while let Some((_pos, ch)) = char_inds.next() {
+                    number.push(ch);
+
+                    match char_inds.peek() {
+                        Some((_pos, c)) => {
+                            if !c.is_numeric() {
+                                break;
+                            }
+                        }
+                        None => (),
+                    }
+                }
+
+                tokens.push(Box::new(JsonValue::JsonNum(number.parse::<i64>().unwrap())));
+            }
+            // Boolean parsing
+            c if c.is_alphabetic() => {
+                let mut value: String = String::from(c);
+
+                while let Some((_pos, ch)) = char_inds.next() {
+                    value.push(ch);
+
+                    match char_inds.peek() {
+                        Some((_pos, c)) => {
+                            if c.is_ascii_punctuation() || *c == ' ' {
+                                break;
+                            }
+                        }
+                        None => (),
+                    }
+                }
+
+                tokens.push(Box::new(JsonValue::JsonBool(value == "true".to_string())))
+            }
+            _ => (),
+        }
+    }
+
+    tokens
 }
