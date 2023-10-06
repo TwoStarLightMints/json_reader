@@ -18,136 +18,14 @@ impl fmt::Display for InvalidJson {
     }
 }
 
-// ====================================================
-//
-// New token implementation
-//
-// ====================================================
-
-pub trait JsonToken: std::fmt::Debug {
-    fn is_key(&self) -> bool;
-    fn is_seperator(&self) -> bool;
-    fn is_container(&self) -> bool;
-    fn is_value(&self) -> bool;
-}
-
-#[derive(Debug)]
-struct JsonKey {
-    // This will only ever contain a string so may as well be a struct
-    key: String,
-}
-
-impl JsonKey {
-    fn new(key: String) -> Self {
-        Self { key }
-    }
-}
-
-impl JsonToken for JsonKey {
-    fn is_key(&self) -> bool {
-        true
-    }
-    fn is_seperator(&self) -> bool {
-        false
-    }
-    fn is_container(&self) -> bool {
-        false
-    }
-    fn is_value(&self) -> bool {
-        false
-    }
-}
-
-#[derive(Debug)]
-enum JsonSeperator {
-    // Used to demarcate the beginning and end of statements in JSON
-    JsonArrBeg,
-    JsonArrEnd,
-    JsonObjBeg,
-    JsonObjEnd,
-    JsonComma,
-}
-
-impl JsonToken for JsonSeperator {
-    fn is_key(&self) -> bool {
-        false
-    }
-    fn is_seperator(&self) -> bool {
-        true
-    }
-    fn is_container(&self) -> bool {
-        false
-    }
-    fn is_value(&self) -> bool {
-        false
-    }
-}
-
-#[derive(Debug)]
-enum JsonContainer {
-    // This will be the container for all JSON containers
-    JsonObj(HashMap<JsonKey, Box<dyn JsonToken>>),
-    JsonArr(Vec<Box<dyn JsonToken>>),
-}
-
-impl JsonToken for JsonContainer {
-    fn is_key(&self) -> bool {
-        false
-    }
-    fn is_seperator(&self) -> bool {
-        false
-    }
-    fn is_container(&self) -> bool {
-        true
-    }
-    fn is_value(&self) -> bool {
-        false
-    }
-}
-
-#[derive(Debug)]
-enum JsonValue {
-    // Wrapper for values in that come from JSON
-    JString(String),
-    JsonNum(f64),
-    JsonBool(bool),
-}
-
-impl JsonToken for JsonValue {
-    fn is_key(&self) -> bool {
-        false
-    }
-    fn is_seperator(&self) -> bool {
-        false
-    }
-    fn is_container(&self) -> bool {
-        false
-    }
-    fn is_value(&self) -> bool {
-        true
-    }
-}
-
-// ====================================================
-//
-// New token implementation
-//
-// ====================================================
-
-// ====================================================
-//
-// Old token implementation
-//
-// ====================================================
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum JsonTokenOld {
+#[derive(Debug, PartialEq, Clone)]
+pub enum JsonToken {
     JsonKey(String),
     JsonString(String),
-    JsonNum(i64),
+    JsonNum(f64),
     JsonBool(bool),
-    JsonObj(HashMap<String, JsonTokenOld>),
-    JsonArr(Vec<JsonTokenOld>),
+    JsonObj(HashMap<String, JsonToken>),
+    JsonArr(Vec<JsonToken>),
     JsonArrBeg,
     JsonArrEnd,
     JsonObjBeg,
@@ -155,10 +33,10 @@ pub enum JsonTokenOld {
     JsonInvalid,
 }
 
-impl JsonTokenOld {
+impl JsonToken {
     pub fn is_key(&self) -> bool {
         match self {
-            JsonTokenOld::JsonKey(_) => {
+            JsonToken::JsonKey(_) => {
                 return true;
             }
             _ => {
@@ -169,77 +47,71 @@ impl JsonTokenOld {
 
     pub fn is_value(&self) -> bool {
         match self {
-            JsonTokenOld::JsonKey(_)
-            | JsonTokenOld::JsonArrBeg
-            | JsonTokenOld::JsonArrEnd
-            | JsonTokenOld::JsonObjBeg
-            | JsonTokenOld::JsonObjEnd
-            | JsonTokenOld::JsonInvalid => false,
+            JsonToken::JsonKey(_)
+            | JsonToken::JsonArrBeg
+            | JsonToken::JsonArrEnd
+            | JsonToken::JsonObjBeg
+            | JsonToken::JsonObjEnd
+            | JsonToken::JsonInvalid => false,
             _ => true,
         }
     }
 
     pub fn as_str(&self) -> Result<&str, InvalidJsonUnwrap> {
         match self {
-            JsonTokenOld::JsonString(str) => Ok(str as &str),
+            JsonToken::JsonString(str) => Ok(str as &str),
             _ => Err(InvalidJsonUnwrap),
         }
     }
 
-    pub fn as_int(&self) -> Result<i64, InvalidJsonUnwrap> {
+    pub fn as_int(&self) -> Result<f64, InvalidJsonUnwrap> {
         match self {
-            JsonTokenOld::JsonNum(num) => Ok(*num),
+            JsonToken::JsonNum(num) => Ok(*num),
             _ => Err(InvalidJsonUnwrap),
         }
     }
 
     pub fn as_bool(&self) -> bool {
         match self {
-            JsonTokenOld::JsonBool(bin) => *bin,
+            JsonToken::JsonBool(bin) => *bin,
             _ => unreachable!(),
         }
     }
 
-    pub fn as_map(&self) -> Result<HashMap<String, JsonTokenOld>, InvalidJsonUnwrap> {
+    pub fn as_map(&self) -> Result<HashMap<String, JsonToken>, InvalidJsonUnwrap> {
         match self {
-            JsonTokenOld::JsonObj(map) => Ok(map.clone()),
+            JsonToken::JsonObj(map) => Ok(map.clone()),
             _ => Err(InvalidJsonUnwrap),
         }
     }
 
-    pub fn as_vec(&self) -> Result<Vec<JsonTokenOld>, InvalidJsonUnwrap> {
+    pub fn as_vec(&self) -> Result<Vec<JsonToken>, InvalidJsonUnwrap> {
         match self {
-            JsonTokenOld::JsonArr(vector) => Ok(vector.clone()),
+            JsonToken::JsonArr(vector) => Ok(vector.clone()),
             _ => Err(InvalidJsonUnwrap),
         }
     }
 }
 
-// ====================================================
-//
-// Old token implementation
-//
-// ====================================================
-
-fn tokenize_json_string(json_string: &String) -> Vec<JsonTokenOld> {
+fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
     let mut char_inds = json_string.char_indices().peekable();
-    let mut tokens: Vec<JsonTokenOld> = Vec::new();
+    let mut tokens: Vec<JsonToken> = Vec::new();
 
     while let Some((_pos, ch)) = char_inds.next() {
         match ch {
             // Object parsing
             '{' => {
-                tokens.push(JsonTokenOld::JsonObjBeg);
+                tokens.push(JsonToken::JsonObjBeg);
             }
             '}' => {
-                tokens.push(JsonTokenOld::JsonObjEnd);
+                tokens.push(JsonToken::JsonObjEnd);
             }
             // Array parsing
             '[' => {
-                tokens.push(JsonTokenOld::JsonArrBeg);
+                tokens.push(JsonToken::JsonArrBeg);
             }
             ']' => {
-                tokens.push(JsonTokenOld::JsonArrEnd);
+                tokens.push(JsonToken::JsonArrEnd);
             }
             // String parsing
             '"' => {
@@ -258,10 +130,10 @@ fn tokenize_json_string(json_string: &String) -> Vec<JsonTokenOld> {
 
                 if let Some((_pos, ch)) = char_inds.peek() {
                     if *ch == ':' {
-                        tokens.push(JsonTokenOld::JsonKey(str_content.replace("\\", "")));
+                        tokens.push(JsonToken::JsonKey(str_content.replace("\\", "")));
                         continue;
                     } else if *ch == ',' || *ch == '{' || *ch == '}' || *ch == '[' || *ch == ']' {
-                        tokens.push(JsonTokenOld::JsonString(str_content.replace("\\", "")));
+                        tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
                         continue;
                     }
                 }
@@ -270,12 +142,11 @@ fn tokenize_json_string(json_string: &String) -> Vec<JsonTokenOld> {
                     match char_inds.peek() {
                         Some((_pos, c)) => {
                             if *c == ':' {
-                                tokens.push(JsonTokenOld::JsonKey(str_content.replace("\\", "")));
+                                tokens.push(JsonToken::JsonKey(str_content.replace("\\", "")));
                                 break;
                             } else if *c == ',' || *c == '{' || *c == '}' || *c == '[' || *c == ']'
                             {
-                                tokens
-                                    .push(JsonTokenOld::JsonString(str_content.replace("\\", "")));
+                                tokens.push(JsonToken::JsonString(str_content.replace("\\", "")));
                                 break;
                             }
                         }
@@ -300,7 +171,7 @@ fn tokenize_json_string(json_string: &String) -> Vec<JsonTokenOld> {
                     }
                 }
 
-                tokens.push(JsonTokenOld::JsonNum(number.parse::<i64>().unwrap()));
+                tokens.push(JsonToken::JsonNum(number.parse::<f64>().unwrap()));
             }
             // Boolean parsing
             c if c.is_alphabetic() => {
@@ -323,10 +194,10 @@ fn tokenize_json_string(json_string: &String) -> Vec<JsonTokenOld> {
                 let falth = String::from("false");
 
                 if value == truth {
-                    tokens.push(JsonTokenOld::JsonBool(true));
+                    tokens.push(JsonToken::JsonBool(true));
                 }
                 if value == falth {
-                    tokens.push(JsonTokenOld::JsonBool(false));
+                    tokens.push(JsonToken::JsonBool(false));
                 }
             }
             _ => (),
@@ -336,7 +207,7 @@ fn tokenize_json_string(json_string: &String) -> Vec<JsonTokenOld> {
     return tokens;
 }
 
-fn check_is_valid_json(json_token_vec: &Vec<JsonTokenOld>) -> bool {
+fn check_is_valid_json(json_token_vec: &Vec<JsonToken>) -> bool {
     let mut num_arr_tokens = 0;
     let mut num_obj_tokens = 0;
     let mut num_vals = 0;
@@ -345,31 +216,31 @@ fn check_is_valid_json(json_token_vec: &Vec<JsonTokenOld>) -> bool {
 
     for token in iter {
         match token {
-            JsonTokenOld::JsonKey(_) => {
+            JsonToken::JsonKey(_) => {
                 num_keys += 1;
             }
-            JsonTokenOld::JsonString(_) => {
+            JsonToken::JsonString(_) => {
                 num_vals += 1;
             }
-            JsonTokenOld::JsonNum(_) => {
+            JsonToken::JsonNum(_) => {
                 num_vals += 1;
             }
-            JsonTokenOld::JsonBool(_) => {
+            JsonToken::JsonBool(_) => {
                 num_vals += 1;
             }
-            JsonTokenOld::JsonArrBeg => {
+            JsonToken::JsonArrBeg => {
                 num_arr_tokens += 1;
             }
-            JsonTokenOld::JsonArrEnd => {
+            JsonToken::JsonArrEnd => {
                 num_arr_tokens += 1;
             }
-            JsonTokenOld::JsonObjBeg => {
+            JsonToken::JsonObjBeg => {
                 num_obj_tokens += 1;
             }
-            JsonTokenOld::JsonObjEnd => {
+            JsonToken::JsonObjEnd => {
                 num_obj_tokens += 1;
             }
-            JsonTokenOld::JsonInvalid => {
+            JsonToken::JsonInvalid => {
                 return false;
             }
             _ => (),
@@ -389,16 +260,16 @@ fn check_is_valid_json(json_token_vec: &Vec<JsonTokenOld>) -> bool {
     return true;
 }
 
-fn from_json_tokens_to_json_array(json_token_vec: &Vec<JsonTokenOld>) -> JsonTokenOld {
-    let mut new_vec: Vec<JsonTokenOld> = Vec::new();
+fn from_json_tokens_to_json_array(json_token_vec: &Vec<JsonToken>) -> JsonToken {
+    let mut new_vec: Vec<JsonToken> = Vec::new();
 
     let mut arr_inds: Vec<usize> = Vec::new();
     let mut obj_inds: Vec<usize> = Vec::new();
 
     json_token_vec.iter().enumerate().for_each(|(ind, val)| {
-        if *val == JsonTokenOld::JsonArrBeg || *val == JsonTokenOld::JsonArrEnd {
+        if *val == JsonToken::JsonArrBeg || *val == JsonToken::JsonArrEnd {
             arr_inds.push(ind);
-        } else if *val == JsonTokenOld::JsonObjBeg || *val == JsonTokenOld::JsonObjEnd {
+        } else if *val == JsonToken::JsonObjBeg || *val == JsonToken::JsonObjEnd {
             obj_inds.push(ind);
         }
     });
@@ -417,22 +288,22 @@ fn from_json_tokens_to_json_array(json_token_vec: &Vec<JsonTokenOld>) -> JsonTok
             new_vec.push(json_token_vec[i].clone());
         } else {
             match json_token_vec[i] {
-                JsonTokenOld::JsonArrBeg => {
+                JsonToken::JsonArrBeg => {
                     new_vec.push(from_json_tokens_to_json_array(
                         &json_token_vec[arr_inds[1]..=arr_inds[arr_inds.len() - 2]].to_vec(),
                     ));
                     nesting += 1;
                 }
-                JsonTokenOld::JsonObjBeg => {
+                JsonToken::JsonObjBeg => {
                     new_vec.push(from_json_tokens_to_json_object(
                         &json_token_vec[obj_inds[0]..=obj_inds[obj_inds.len() - 1]].to_vec(),
                     ));
                     nesting += 1;
                 }
-                JsonTokenOld::JsonArrEnd => {
+                JsonToken::JsonArrEnd => {
                     nesting -= 1;
                 }
-                JsonTokenOld::JsonObjEnd => {
+                JsonToken::JsonObjEnd => {
                     nesting -= 1;
                 }
                 _ => (),
@@ -440,19 +311,19 @@ fn from_json_tokens_to_json_array(json_token_vec: &Vec<JsonTokenOld>) -> JsonTok
         }
     }
 
-    return JsonTokenOld::JsonArr(new_vec);
+    return JsonToken::JsonArr(new_vec);
 }
 
-pub fn from_json_tokens_to_json_object(json_token_vec: &Vec<JsonTokenOld>) -> JsonTokenOld {
-    let mut new_map: HashMap<String, JsonTokenOld> = HashMap::new();
+pub fn from_json_tokens_to_json_object(json_token_vec: &Vec<JsonToken>) -> JsonToken {
+    let mut new_map: HashMap<String, JsonToken> = HashMap::new();
 
     let mut arr_inds: Vec<usize> = Vec::new();
     let mut obj_inds: Vec<usize> = Vec::new();
 
     json_token_vec.iter().enumerate().for_each(|(ind, val)| {
-        if *val == JsonTokenOld::JsonArrBeg || *val == JsonTokenOld::JsonArrEnd {
+        if *val == JsonToken::JsonArrBeg || *val == JsonToken::JsonArrEnd {
             arr_inds.push(ind);
-        } else if *val == JsonTokenOld::JsonObjBeg || *val == JsonTokenOld::JsonObjEnd {
+        } else if *val == JsonToken::JsonObjBeg || *val == JsonToken::JsonObjEnd {
             obj_inds.push(ind);
         }
     });
@@ -468,7 +339,7 @@ pub fn from_json_tokens_to_json_object(json_token_vec: &Vec<JsonTokenOld>) -> Js
         }
 
         let mut key = String::new();
-        if let JsonTokenOld::JsonKey(val) = &json_token_vec[i] {
+        if let JsonToken::JsonKey(val) = &json_token_vec[i] {
             key = val.clone();
         }
 
@@ -477,7 +348,7 @@ pub fn from_json_tokens_to_json_object(json_token_vec: &Vec<JsonTokenOld>) -> Js
                 new_map.insert(key.clone(), json_token_vec[i + 1].clone());
             } else {
                 match json_token_vec[i + 1] {
-                    JsonTokenOld::JsonArrBeg => {
+                    JsonToken::JsonArrBeg => {
                         new_map.insert(
                             key.clone(),
                             from_json_tokens_to_json_array(
@@ -487,7 +358,7 @@ pub fn from_json_tokens_to_json_object(json_token_vec: &Vec<JsonTokenOld>) -> Js
                         );
                         nesting += 1;
                     }
-                    JsonTokenOld::JsonObjBeg => {
+                    JsonToken::JsonObjBeg => {
                         new_map.insert(
                             key.clone(),
                             from_json_tokens_to_json_object(
@@ -502,10 +373,10 @@ pub fn from_json_tokens_to_json_object(json_token_vec: &Vec<JsonTokenOld>) -> Js
             }
         } else if nesting > 0 {
             match json_token_vec[i] {
-                JsonTokenOld::JsonArrEnd => {
+                JsonToken::JsonArrEnd => {
                     nesting -= 1;
                 }
-                JsonTokenOld::JsonObjEnd => {
+                JsonToken::JsonObjEnd => {
                     nesting -= 1;
                 }
                 _ => (),
@@ -513,12 +384,10 @@ pub fn from_json_tokens_to_json_object(json_token_vec: &Vec<JsonTokenOld>) -> Js
         }
     }
 
-    return JsonTokenOld::JsonObj(new_map);
+    return JsonToken::JsonObj(new_map);
 }
 
-pub fn from_json_string(
-    json_string: &String,
-) -> Result<HashMap<String, JsonTokenOld>, InvalidJson> {
+pub fn from_json_string(json_string: &String) -> Result<HashMap<String, JsonToken>, InvalidJson> {
     let token_vec = tokenize_json_string(&json_string);
 
     if !check_is_valid_json(&token_vec) {
@@ -541,10 +410,10 @@ mod tests {
         let json_string: String = String::from(r#"{"string": "Hello, World!"}"#);
         assert_eq!(
             vec![
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonKey(String::from("string")),
-                JsonTokenOld::JsonString(String::from("Hello, World!")),
-                JsonTokenOld::JsonObjEnd
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonKey(String::from("string")),
+                JsonToken::JsonString(String::from("Hello, World!")),
+                JsonToken::JsonObjEnd
             ],
             tokenize_json_string(&json_string)
         );
@@ -555,10 +424,10 @@ mod tests {
         let json_string: String = String::from(r#"{"string": "Hell\"o, World!"}"#);
         assert_eq!(
             vec![
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonKey(String::from("string")),
-                JsonTokenOld::JsonString(String::from("Hell\"o, World!")),
-                JsonTokenOld::JsonObjEnd
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonKey(String::from("string")),
+                JsonToken::JsonString(String::from("Hell\"o, World!")),
+                JsonToken::JsonObjEnd
             ],
             tokenize_json_string(&json_string)
         );
@@ -569,10 +438,10 @@ mod tests {
         let json_string: String = String::from(r#"{"number": 123}"#);
         assert_eq!(
             vec![
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonKey(String::from("number")),
-                JsonTokenOld::JsonNum(123),
-                JsonTokenOld::JsonObjEnd
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonKey(String::from("number")),
+                JsonToken::JsonNum(123.0),
+                JsonToken::JsonObjEnd
             ],
             tokenize_json_string(&json_string)
         );
@@ -583,10 +452,10 @@ mod tests {
         let json_string: String = String::from(r#"{"boolean": true}"#);
         assert_eq!(
             vec![
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonKey(String::from("boolean")),
-                JsonTokenOld::JsonBool(true),
-                JsonTokenOld::JsonObjEnd
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonKey(String::from("boolean")),
+                JsonToken::JsonBool(true),
+                JsonToken::JsonObjEnd
             ],
             tokenize_json_string(&json_string)
         );
@@ -597,12 +466,12 @@ mod tests {
         let json_string: String = String::from(r#"{"key":[ true ]}"#);
         assert_eq!(
             vec![
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonKey(String::from("key")),
-                JsonTokenOld::JsonArrBeg,
-                JsonTokenOld::JsonBool(true),
-                JsonTokenOld::JsonArrEnd,
-                JsonTokenOld::JsonObjEnd
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonKey(String::from("key")),
+                JsonToken::JsonArrBeg,
+                JsonToken::JsonBool(true),
+                JsonToken::JsonArrEnd,
+                JsonToken::JsonObjEnd
             ],
             tokenize_json_string(&json_string)
         );
@@ -620,23 +489,23 @@ mod tests {
         );
         assert_eq!(
             vec![
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonKey(String::from("hello")),
-                JsonTokenOld::JsonString(String::from("world")),
-                JsonTokenOld::JsonKey(String::from("bruh")),
-                JsonTokenOld::JsonBool(true),
-                JsonTokenOld::JsonKey(String::from("arr")),
-                JsonTokenOld::JsonArrBeg,
-                JsonTokenOld::JsonString(String::from("true")),
-                JsonTokenOld::JsonBool(true),
-                JsonTokenOld::JsonNum(123),
-                JsonTokenOld::JsonArrEnd,
-                JsonTokenOld::JsonKey(String::from("obj")),
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonString(String::from("hello")),
-                JsonTokenOld::JsonNum(123),
-                JsonTokenOld::JsonObjEnd,
-                JsonTokenOld::JsonObjEnd
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonKey(String::from("hello")),
+                JsonToken::JsonString(String::from("world")),
+                JsonToken::JsonKey(String::from("bruh")),
+                JsonToken::JsonBool(true),
+                JsonToken::JsonKey(String::from("arr")),
+                JsonToken::JsonArrBeg,
+                JsonToken::JsonString(String::from("true")),
+                JsonToken::JsonBool(true),
+                JsonToken::JsonNum(123.0),
+                JsonToken::JsonArrEnd,
+                JsonToken::JsonKey(String::from("obj")),
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonString(String::from("hello")),
+                JsonToken::JsonNum(123.0),
+                JsonToken::JsonObjEnd,
+                JsonToken::JsonObjEnd
             ],
             tokenize_json_string(&json_string)
         );
@@ -647,13 +516,13 @@ mod tests {
         let json_string = String::from(r#"{"object": {"hello": "world"}}"#);
         assert_eq!(
             vec![
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonKey(String::from("object")),
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonKey(String::from("hello")),
-                JsonTokenOld::JsonString(String::from("world")),
-                JsonTokenOld::JsonObjEnd,
-                JsonTokenOld::JsonObjEnd
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonKey(String::from("object")),
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonKey(String::from("hello")),
+                JsonToken::JsonString(String::from("world")),
+                JsonToken::JsonObjEnd,
+                JsonToken::JsonObjEnd
             ],
             tokenize_json_string(&json_string)
         );
@@ -665,18 +534,18 @@ mod tests {
             String::from(r#"{ "nested-array": "does it work?", "arr": [123, [321, true]] }"#);
         assert_eq!(
             vec![
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonKey(String::from("nested-array")),
-                JsonTokenOld::JsonString(String::from("does it work?")),
-                JsonTokenOld::JsonKey(String::from("arr")),
-                JsonTokenOld::JsonArrBeg,
-                JsonTokenOld::JsonNum(123),
-                JsonTokenOld::JsonArrBeg,
-                JsonTokenOld::JsonNum(321),
-                JsonTokenOld::JsonBool(true),
-                JsonTokenOld::JsonArrEnd,
-                JsonTokenOld::JsonArrEnd,
-                JsonTokenOld::JsonObjEnd
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonKey(String::from("nested-array")),
+                JsonToken::JsonString(String::from("does it work?")),
+                JsonToken::JsonKey(String::from("arr")),
+                JsonToken::JsonArrBeg,
+                JsonToken::JsonNum(123.0),
+                JsonToken::JsonArrBeg,
+                JsonToken::JsonNum(321.0),
+                JsonToken::JsonBool(true),
+                JsonToken::JsonArrEnd,
+                JsonToken::JsonArrEnd,
+                JsonToken::JsonObjEnd
             ],
             tokenize_json_string(&json_string)
         );
@@ -689,23 +558,23 @@ mod tests {
         );
         assert_eq!(
             vec![
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonKey(String::from("key1")),
-                JsonTokenOld::JsonString(String::from("Hello, World!")),
-                JsonTokenOld::JsonKey(String::from("key2")),
-                JsonTokenOld::JsonArrBeg,
-                JsonTokenOld::JsonNum(123),
-                JsonTokenOld::JsonBool(true),
-                JsonTokenOld::JsonArrBeg,
-                JsonTokenOld::JsonString(String::from("I am nested!")),
-                JsonTokenOld::JsonArrEnd,
-                JsonTokenOld::JsonArrEnd,
-                JsonTokenOld::JsonKey(String::from("key3")),
-                JsonTokenOld::JsonObjBeg,
-                JsonTokenOld::JsonKey(String::from("nested-obj")),
-                JsonTokenOld::JsonString(String::from("Hello up there!")),
-                JsonTokenOld::JsonObjEnd,
-                JsonTokenOld::JsonObjEnd
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonKey(String::from("key1")),
+                JsonToken::JsonString(String::from("Hello, World!")),
+                JsonToken::JsonKey(String::from("key2")),
+                JsonToken::JsonArrBeg,
+                JsonToken::JsonNum(123.0),
+                JsonToken::JsonBool(true),
+                JsonToken::JsonArrBeg,
+                JsonToken::JsonString(String::from("I am nested!")),
+                JsonToken::JsonArrEnd,
+                JsonToken::JsonArrEnd,
+                JsonToken::JsonKey(String::from("key3")),
+                JsonToken::JsonObjBeg,
+                JsonToken::JsonKey(String::from("nested-obj")),
+                JsonToken::JsonString(String::from("Hello up there!")),
+                JsonToken::JsonObjEnd,
+                JsonToken::JsonObjEnd
             ],
             tokenize_json_string(&json_string)
         );
@@ -713,53 +582,53 @@ mod tests {
 
     #[test]
     fn detects_key() {
-        let key = JsonTokenOld::JsonKey(String::from("This is a key!"));
+        let key = JsonToken::JsonKey(String::from("This is a key!"));
         assert_eq!(true, key.is_key());
     }
 
     #[test]
     fn converts_tokens_to_hashmap_containers_following_each_other() {
-        let json_token_vec: Vec<JsonTokenOld> = vec![
-            JsonTokenOld::JsonObjBeg,
-            JsonTokenOld::JsonKey(String::from("key1")),
-            JsonTokenOld::JsonString(String::from("string")),
-            JsonTokenOld::JsonKey(String::from("key2")),
-            JsonTokenOld::JsonBool(true),
-            JsonTokenOld::JsonKey(String::from("key3")),
-            JsonTokenOld::JsonArrBeg,
-            JsonTokenOld::JsonString(String::from("thing1")),
-            JsonTokenOld::JsonString(String::from("thing2")),
-            JsonTokenOld::JsonArrEnd,
-            JsonTokenOld::JsonKey(String::from("key4")),
-            JsonTokenOld::JsonObjBeg,
-            JsonTokenOld::JsonKey(String::from("key1")),
-            JsonTokenOld::JsonString(String::from("full test")),
-            JsonTokenOld::JsonObjEnd,
-            JsonTokenOld::JsonObjEnd,
+        let json_token_vec: Vec<JsonToken> = vec![
+            JsonToken::JsonObjBeg,
+            JsonToken::JsonKey(String::from("key1")),
+            JsonToken::JsonString(String::from("string")),
+            JsonToken::JsonKey(String::from("key2")),
+            JsonToken::JsonBool(true),
+            JsonToken::JsonKey(String::from("key3")),
+            JsonToken::JsonArrBeg,
+            JsonToken::JsonString(String::from("thing1")),
+            JsonToken::JsonString(String::from("thing2")),
+            JsonToken::JsonArrEnd,
+            JsonToken::JsonKey(String::from("key4")),
+            JsonToken::JsonObjBeg,
+            JsonToken::JsonKey(String::from("key1")),
+            JsonToken::JsonString(String::from("full test")),
+            JsonToken::JsonObjEnd,
+            JsonToken::JsonObjEnd,
         ];
 
-        let mut json_map: HashMap<String, JsonTokenOld> = HashMap::new();
-        let mut inner_map: HashMap<String, JsonTokenOld> = HashMap::new();
+        let mut json_map: HashMap<String, JsonToken> = HashMap::new();
+        let mut inner_map: HashMap<String, JsonToken> = HashMap::new();
         inner_map.insert(
             String::from("key1"),
-            JsonTokenOld::JsonString(String::from("full test")),
+            JsonToken::JsonString(String::from("full test")),
         );
         json_map.insert(
             String::from("key1"),
-            JsonTokenOld::JsonString(String::from("string")),
+            JsonToken::JsonString(String::from("string")),
         );
-        json_map.insert(String::from("key2"), JsonTokenOld::JsonBool(true));
+        json_map.insert(String::from("key2"), JsonToken::JsonBool(true));
         json_map.insert(
             String::from("key3"),
-            JsonTokenOld::JsonArr(vec![
-                JsonTokenOld::JsonString(String::from("thing1")),
-                JsonTokenOld::JsonString(String::from("thing2")),
+            JsonToken::JsonArr(vec![
+                JsonToken::JsonString(String::from("thing1")),
+                JsonToken::JsonString(String::from("thing2")),
             ]),
         );
-        json_map.insert(String::from("key4"), JsonTokenOld::JsonObj(inner_map));
+        json_map.insert(String::from("key4"), JsonToken::JsonObj(inner_map));
 
         let created_map = match from_json_tokens_to_json_object(&json_token_vec) {
-            JsonTokenOld::JsonObj(map) => map,
+            JsonToken::JsonObj(map) => map,
             _ => HashMap::new(),
         };
 
@@ -768,27 +637,27 @@ mod tests {
 
     #[test]
     fn converts_not_nested_tokens_to_hashmap() {
-        let json_token_vec: Vec<JsonTokenOld> = vec![
-            JsonTokenOld::JsonObjBeg,
-            JsonTokenOld::JsonKey(String::from("hello")),
-            JsonTokenOld::JsonString(String::from("world")),
-            JsonTokenOld::JsonKey(String::from("num")),
-            JsonTokenOld::JsonNum(123),
-            JsonTokenOld::JsonKey(String::from("bool")),
-            JsonTokenOld::JsonBool(true),
-            JsonTokenOld::JsonObjEnd,
+        let json_token_vec: Vec<JsonToken> = vec![
+            JsonToken::JsonObjBeg,
+            JsonToken::JsonKey(String::from("hello")),
+            JsonToken::JsonString(String::from("world")),
+            JsonToken::JsonKey(String::from("num")),
+            JsonToken::JsonNum(123.0),
+            JsonToken::JsonKey(String::from("bool")),
+            JsonToken::JsonBool(true),
+            JsonToken::JsonObjEnd,
         ];
 
-        let mut json_map: HashMap<String, JsonTokenOld> = HashMap::new();
+        let mut json_map: HashMap<String, JsonToken> = HashMap::new();
         json_map.insert(
             String::from("hello"),
-            JsonTokenOld::JsonString(String::from("world")),
+            JsonToken::JsonString(String::from("world")),
         );
-        json_map.insert(String::from("num"), JsonTokenOld::JsonNum(123));
-        json_map.insert(String::from("bool"), JsonTokenOld::JsonBool(true));
+        json_map.insert(String::from("num"), JsonToken::JsonNum(123.0));
+        json_map.insert(String::from("bool"), JsonToken::JsonBool(true));
 
         let created_map = match from_json_tokens_to_json_object(&json_token_vec) {
-            JsonTokenOld::JsonObj(map) => map,
+            JsonToken::JsonObj(map) => map,
             _ => HashMap::new(),
         };
 
@@ -797,39 +666,36 @@ mod tests {
 
     #[test]
     fn converts_tokens_w_array_to_hashmap() {
-        let json_token_vec: Vec<JsonTokenOld> = vec![
-            JsonTokenOld::JsonObjBeg,
-            JsonTokenOld::JsonKey(String::from("hello")),
-            JsonTokenOld::JsonString(String::from("world")),
-            JsonTokenOld::JsonKey(String::from("num")),
-            JsonTokenOld::JsonNum(123),
-            JsonTokenOld::JsonKey(String::from("bool")),
-            JsonTokenOld::JsonBool(true),
-            JsonTokenOld::JsonKey(String::from("array")),
-            JsonTokenOld::JsonArrBeg,
-            JsonTokenOld::JsonNum(123),
-            JsonTokenOld::JsonBool(false),
-            JsonTokenOld::JsonArrEnd,
-            JsonTokenOld::JsonObjEnd,
+        let json_token_vec: Vec<JsonToken> = vec![
+            JsonToken::JsonObjBeg,
+            JsonToken::JsonKey(String::from("hello")),
+            JsonToken::JsonString(String::from("world")),
+            JsonToken::JsonKey(String::from("num")),
+            JsonToken::JsonNum(123.0),
+            JsonToken::JsonKey(String::from("bool")),
+            JsonToken::JsonBool(true),
+            JsonToken::JsonKey(String::from("array")),
+            JsonToken::JsonArrBeg,
+            JsonToken::JsonNum(123.0),
+            JsonToken::JsonBool(false),
+            JsonToken::JsonArrEnd,
+            JsonToken::JsonObjEnd,
         ];
 
-        let mut json_map: HashMap<String, JsonTokenOld> = HashMap::new();
+        let mut json_map: HashMap<String, JsonToken> = HashMap::new();
         json_map.insert(
             String::from("hello"),
-            JsonTokenOld::JsonString(String::from("world")),
+            JsonToken::JsonString(String::from("world")),
         );
-        json_map.insert(String::from("num"), JsonTokenOld::JsonNum(123));
-        json_map.insert(String::from("bool"), JsonTokenOld::JsonBool(true));
+        json_map.insert(String::from("num"), JsonToken::JsonNum(123.0));
+        json_map.insert(String::from("bool"), JsonToken::JsonBool(true));
         json_map.insert(
             String::from("array"),
-            JsonTokenOld::JsonArr(vec![
-                JsonTokenOld::JsonNum(123),
-                JsonTokenOld::JsonBool(false),
-            ]),
+            JsonToken::JsonArr(vec![JsonToken::JsonNum(123.0), JsonToken::JsonBool(false)]),
         );
 
         let created_map = match from_json_tokens_to_json_object(&json_token_vec) {
-            JsonTokenOld::JsonObj(map) => map,
+            JsonToken::JsonObj(map) => map,
             _ => HashMap::new(),
         };
 
@@ -838,47 +704,44 @@ mod tests {
 
     #[test]
     fn converts_tokens_w_nested_array_to_hashmap() {
-        let json_token_vec: Vec<JsonTokenOld> = vec![
-            JsonTokenOld::JsonObjBeg,
-            JsonTokenOld::JsonKey(String::from("hello")),
-            JsonTokenOld::JsonString(String::from("world")),
-            JsonTokenOld::JsonKey(String::from("num")),
-            JsonTokenOld::JsonNum(123),
-            JsonTokenOld::JsonKey(String::from("bool")),
-            JsonTokenOld::JsonBool(true),
-            JsonTokenOld::JsonKey(String::from("array")),
-            JsonTokenOld::JsonArrBeg,
-            JsonTokenOld::JsonNum(123),
-            JsonTokenOld::JsonBool(false),
-            JsonTokenOld::JsonArrBeg,
-            JsonTokenOld::JsonNum(321),
-            JsonTokenOld::JsonBool(false),
-            JsonTokenOld::JsonArrEnd,
-            JsonTokenOld::JsonArrEnd,
-            JsonTokenOld::JsonObjEnd,
+        let json_token_vec: Vec<JsonToken> = vec![
+            JsonToken::JsonObjBeg,
+            JsonToken::JsonKey(String::from("hello")),
+            JsonToken::JsonString(String::from("world")),
+            JsonToken::JsonKey(String::from("num")),
+            JsonToken::JsonNum(123.0),
+            JsonToken::JsonKey(String::from("bool")),
+            JsonToken::JsonBool(true),
+            JsonToken::JsonKey(String::from("array")),
+            JsonToken::JsonArrBeg,
+            JsonToken::JsonNum(123.0),
+            JsonToken::JsonBool(false),
+            JsonToken::JsonArrBeg,
+            JsonToken::JsonNum(321.0),
+            JsonToken::JsonBool(false),
+            JsonToken::JsonArrEnd,
+            JsonToken::JsonArrEnd,
+            JsonToken::JsonObjEnd,
         ];
 
-        let mut json_map: HashMap<String, JsonTokenOld> = HashMap::new();
+        let mut json_map: HashMap<String, JsonToken> = HashMap::new();
         json_map.insert(
             String::from("hello"),
-            JsonTokenOld::JsonString(String::from("world")),
+            JsonToken::JsonString(String::from("world")),
         );
-        json_map.insert(String::from("num"), JsonTokenOld::JsonNum(123));
-        json_map.insert(String::from("bool"), JsonTokenOld::JsonBool(true));
+        json_map.insert(String::from("num"), JsonToken::JsonNum(123.0));
+        json_map.insert(String::from("bool"), JsonToken::JsonBool(true));
         json_map.insert(
             String::from("array"),
-            JsonTokenOld::JsonArr(vec![
-                JsonTokenOld::JsonNum(123),
-                JsonTokenOld::JsonBool(false),
-                JsonTokenOld::JsonArr(vec![
-                    JsonTokenOld::JsonNum(321),
-                    JsonTokenOld::JsonBool(false),
-                ]),
+            JsonToken::JsonArr(vec![
+                JsonToken::JsonNum(123.0),
+                JsonToken::JsonBool(false),
+                JsonToken::JsonArr(vec![JsonToken::JsonNum(321.0), JsonToken::JsonBool(false)]),
             ]),
         );
 
         let created_map = match from_json_tokens_to_json_object(&json_token_vec) {
-            JsonTokenOld::JsonObj(map) => map,
+            JsonToken::JsonObj(map) => map,
             _ => HashMap::new(),
         };
 
@@ -887,39 +750,39 @@ mod tests {
 
     #[test]
     fn converts_tokens_w_nested_object_to_hashmap() {
-        let json_token_vec: Vec<JsonTokenOld> = vec![
-            JsonTokenOld::JsonObjBeg,
-            JsonTokenOld::JsonKey(String::from("hello")),
-            JsonTokenOld::JsonString(String::from("world")),
-            JsonTokenOld::JsonKey(String::from("num")),
-            JsonTokenOld::JsonNum(123),
-            JsonTokenOld::JsonKey(String::from("bool")),
-            JsonTokenOld::JsonBool(true),
-            JsonTokenOld::JsonKey(String::from("obj")),
-            JsonTokenOld::JsonObjBeg,
-            JsonTokenOld::JsonKey(String::from("key1")),
-            JsonTokenOld::JsonString(String::from("nested obj test")),
-            JsonTokenOld::JsonObjEnd,
-            JsonTokenOld::JsonObjEnd,
+        let json_token_vec: Vec<JsonToken> = vec![
+            JsonToken::JsonObjBeg,
+            JsonToken::JsonKey(String::from("hello")),
+            JsonToken::JsonString(String::from("world")),
+            JsonToken::JsonKey(String::from("num")),
+            JsonToken::JsonNum(123.0),
+            JsonToken::JsonKey(String::from("bool")),
+            JsonToken::JsonBool(true),
+            JsonToken::JsonKey(String::from("obj")),
+            JsonToken::JsonObjBeg,
+            JsonToken::JsonKey(String::from("key1")),
+            JsonToken::JsonString(String::from("nested obj test")),
+            JsonToken::JsonObjEnd,
+            JsonToken::JsonObjEnd,
         ];
 
-        let mut nested_map: HashMap<String, JsonTokenOld> = HashMap::new();
+        let mut nested_map: HashMap<String, JsonToken> = HashMap::new();
         nested_map.insert(
             String::from("key1"),
-            JsonTokenOld::JsonString(String::from("nested obj test")),
+            JsonToken::JsonString(String::from("nested obj test")),
         );
 
-        let mut json_map: HashMap<String, JsonTokenOld> = HashMap::new();
+        let mut json_map: HashMap<String, JsonToken> = HashMap::new();
         json_map.insert(
             String::from("hello"),
-            JsonTokenOld::JsonString(String::from("world")),
+            JsonToken::JsonString(String::from("world")),
         );
-        json_map.insert(String::from("num"), JsonTokenOld::JsonNum(123));
-        json_map.insert(String::from("bool"), JsonTokenOld::JsonBool(true));
-        json_map.insert(String::from("obj"), JsonTokenOld::JsonObj(nested_map));
+        json_map.insert(String::from("num"), JsonToken::JsonNum(123.0));
+        json_map.insert(String::from("bool"), JsonToken::JsonBool(true));
+        json_map.insert(String::from("obj"), JsonToken::JsonObj(nested_map));
 
         let created_map = match from_json_tokens_to_json_object(&json_token_vec) {
-            JsonTokenOld::JsonObj(map) => map,
+            JsonToken::JsonObj(map) => map,
             _ => HashMap::new(),
         };
 
@@ -927,114 +790,10 @@ mod tests {
     }
 }
 
-pub fn testing_new_impl(json_string: &String) -> Vec<Box<dyn JsonToken>> {
-    let mut char_inds = json_string.char_indices().peekable();
-    let mut tokens: Vec<Box<dyn JsonToken>> = Vec::new();
-
-    while let Some((_pos, ch)) = char_inds.next() {
-        println!("{ch}");
-        match ch {
-            // Object parsing
-            '{' => {
-                tokens.push(Box::new(JsonSeperator::JsonObjBeg));
-            }
-            '}' => {
-                tokens.push(Box::new(JsonSeperator::JsonObjEnd));
-            }
-            // Array parsing
-            '[' => {
-                tokens.push(Box::new(JsonSeperator::JsonArrBeg));
-            }
-            ']' => {
-                tokens.push(Box::new(JsonSeperator::JsonArrEnd));
-            }
-            // String parsing
-            '"' => {
-                let mut last_matched: char = ch;
-                let str_content: String = char_inds
-                    .by_ref()
-                    .take_while(|(_pos, c)| {
-                        if *c != '"' || last_matched == '\\' {
-                            last_matched = *c;
-                            return true;
-                        }
-                        false
-                    })
-                    .map(|(_pos, c)| c)
-                    .collect();
-
-                if let Some((_pos, ch)) = char_inds.peek() {
-                    if *ch == ':' {
-                        tokens.push(Box::new(JsonKey::new(str_content.replace("\\", ""))));
-                        continue;
-                    } else if *ch == ',' || *ch == '{' || *ch == '}' || *ch == '[' || *ch == ']' {
-                        tokens.push(Box::new(JsonValue::JString(str_content.replace("\\", ""))));
-                        continue;
-                    }
-                }
-
-                while let Some((_pos, _ch)) = char_inds.next() {
-                    match char_inds.peek() {
-                        Some((_pos, c)) => {
-                            if *c == ':' {
-                                tokens.push(Box::new(JsonKey::new(str_content.replace("\\", ""))));
-                                break;
-                            } else if *c == ',' || *c == '{' || *c == '}' || *c == '[' || *c == ']'
-                            {
-                                tokens.push(Box::new(JsonValue::JString(
-                                    str_content.replace("\\", ""),
-                                )));
-                                break;
-                            }
-                        }
-                        None => (),
-                    }
-                }
-            }
-
-            // Number parsing
-            c if c.is_numeric() || c == '-' => {
-                let mut number: String = String::from(c);
-                while let Some((_pos, ch)) = char_inds.next() {
-                    if ch.is_numeric() || ch == '.' {
-                        // This case needs to be here so that a little error i found doesn't happen
-                        number.push(ch);
-                    }
-
-                    match char_inds.peek() {
-                        Some((_pos, c)) => {
-                            if !c.is_numeric() && !(*c == '.') {
-                                break;
-                            }
-                        }
-                        None => (),
-                    }
-                }
-
-                tokens.push(Box::new(JsonValue::JsonNum(number.parse::<f64>().unwrap())));
-            }
-            // Boolean parsing
-            c if c.is_alphabetic() => {
-                let mut value: String = String::from(c);
-
-                while let Some((_pos, ch)) = char_inds.next() {
-                    value.push(ch);
-
-                    match char_inds.peek() {
-                        Some((_pos, c)) => {
-                            if c.is_ascii_punctuation() || *c == ' ' {
-                                break;
-                            }
-                        }
-                        None => (),
-                    }
-                }
-
-                tokens.push(Box::new(JsonValue::JsonBool(value == "true".to_string())))
-            }
-            _ => (),
-        }
-    }
-
-    tokens
-}
+// At this time, token vector which contains many different not combined pieces of info
+//
+// JsonObjBeg,
+// JsonKey(Thing), JsonNum(1),
+// JsonObjEnd
+//
+// Assuming the vector of tokens is valid, there is an even number of Object and Array Beginning and End tokens
