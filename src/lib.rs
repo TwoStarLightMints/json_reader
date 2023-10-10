@@ -159,7 +159,9 @@ fn tokenize_json_string(json_string: &String) -> Vec<JsonToken> {
             c if c.is_numeric() => {
                 let mut number: String = String::from(c);
                 while let Some((_pos, ch)) = char_inds.next() {
-                    number.push(ch);
+                    if ch.is_numeric() || ch == '.' {
+                        number.push(ch);
+                    }
 
                     match char_inds.peek() {
                         Some((_pos, c)) => {
@@ -258,6 +260,81 @@ fn check_is_valid_json(json_token_vec: &Vec<JsonToken>) -> bool {
     }
 
     return true;
+}
+
+fn from_tokens_to_datastructure(json_tokens: &Vec<JsonToken>) -> JsonToken {
+    let start_ind = json_tokens
+        .iter()
+        .rposition(|e| *e == JsonToken::JsonArrBeg || *e == JsonToken::JsonObjBeg)
+        .unwrap();
+
+    if json_tokens[start_ind] == JsonToken::JsonArrBeg {
+        let j_vec: Vec<JsonToken> = json_tokens
+            .iter()
+            .skip(start_ind + 1)
+            .take_while(|e| **e != JsonToken::JsonArrEnd)
+            .map(|e| e.clone())
+            .collect();
+
+        JsonToken::JsonArr(j_vec)
+    } else {
+        let j_vec: Vec<JsonToken> = json_tokens
+            .iter()
+            .skip(start_ind + 1)
+            .take_while(|e| **e != JsonToken::JsonObjEnd)
+            .map(|e| e.clone())
+            .collect();
+
+        let mut j_iter = j_vec.iter();
+        let mut j_map: HashMap<String, JsonToken> = HashMap::new();
+
+        while let Some(item) = j_iter.next() {
+            let value = j_iter.next().unwrap();
+
+            match item {
+                JsonToken::JsonKey(key) => {
+                    j_map.insert(key.clone(), value.clone());
+                }
+                _ => (),
+            }
+        }
+
+        JsonToken::JsonObj(j_map)
+    }
+}
+
+fn flatten_json_tokens(mut json_tokens: Vec<JsonToken>) -> HashMap<String, JsonToken> {
+    while let Some(start) = json_tokens
+        .iter()
+        .rposition(|e| *e == JsonToken::JsonArrBeg || *e == JsonToken::JsonObjBeg)
+    {
+        let end = json_tokens
+            .iter()
+            .skip(start)
+            .position(|e| *e == JsonToken::JsonArrEnd || *e == JsonToken::JsonObjEnd)
+            .unwrap();
+
+        let new_token = from_tokens_to_datastructure(&json_tokens);
+
+        // Here, start + end is used because, using skip with the iterator above causes
+        // the result of position to be in relation to the skip start. So, if one had a vector
+        // [1, 2, 3, 4, 5, 6, 7, 8, 9] and used vec.iter().skip(1) and used position() to find
+        // 9, the result would be 7, instead of 8.
+        json_tokens.drain(start..=(start + end));
+        json_tokens.insert(start, new_token);
+    }
+
+    json_tokens[0].as_map().unwrap()
+}
+
+pub fn from_json_string(json_string: &String) -> Result<HashMap<String, JsonToken>, InvalidJson> {
+    let token_vec = tokenize_json_string(&json_string);
+
+    if !check_is_valid_json(&token_vec) {
+        return Err(InvalidJson);
+    }
+
+    Ok(flatten_json_tokens(token_vec))
 }
 
 fn json_tokens_to_json_array(json_token_vec: &Vec<JsonToken>) -> JsonToken {
@@ -385,80 +462,6 @@ pub fn json_tokens_to_json_object(json_token_vec: &Vec<JsonToken>) -> JsonToken 
     }
 
     return JsonToken::JsonObj(new_map);
-}
-
-fn from_tokens_to_datastructure(json_tokens: &Vec<JsonToken>) -> JsonToken {
-    let start_ind = json_tokens
-        .iter()
-        .rposition(|e| *e == JsonToken::JsonArrBeg || *e == JsonToken::JsonObjBeg)
-        .unwrap();
-
-    if json_tokens[start_ind] == JsonToken::JsonArrBeg {
-        let j_vec: Vec<JsonToken> = json_tokens
-            .iter()
-            .skip(start_ind + 1)
-            .take_while(|e| **e != JsonToken::JsonArrEnd)
-            .map(|e| e.clone())
-            .collect();
-
-        JsonToken::JsonArr(j_vec)
-    } else {
-        let j_vec: Vec<JsonToken> = json_tokens
-            .iter()
-            .skip(start_ind + 1)
-            .take_while(|e| **e != JsonToken::JsonObjEnd)
-            .map(|e| e.clone())
-            .collect();
-
-        let mut j_iter = j_vec.iter();
-        let mut j_map: HashMap<String, JsonToken> = HashMap::new();
-
-        while let Some(item) = j_iter.next() {
-            let value = j_iter.next().unwrap();
-
-            match item {
-                JsonToken::JsonKey(key) => {
-                    j_map.insert(key.clone(), value.clone());
-                }
-                _ => (),
-            }
-        }
-
-        JsonToken::JsonObj(j_map)
-    }
-}
-
-fn flatten_json_tokens(mut json_tokens: Vec<JsonToken>) -> HashMap<String, JsonToken> {
-    while let Some(start) = json_tokens
-        .iter()
-        .rposition(|e| *e == JsonToken::JsonArrBeg || *e == JsonToken::JsonObjBeg)
-    {
-        let end = json_tokens
-            .iter()
-            .position(|e| *e == JsonToken::JsonArrEnd || *e == JsonToken::JsonObjEnd)
-            .unwrap();
-
-        let new_token = from_tokens_to_datastructure(&json_tokens);
-
-        json_tokens.drain(start..=end);
-        json_tokens.insert(start, new_token);
-    }
-
-    json_tokens[0].as_map().unwrap()
-}
-
-pub fn from_json_string(json_string: &String) -> Result<HashMap<String, JsonToken>, InvalidJson> {
-    let mut token_vec = tokenize_json_string(&json_string);
-
-    if !check_is_valid_json(&token_vec) {
-        return Err(InvalidJson);
-    }
-
-    // match json_tokens_to_json_object(&token_vec).as_map() {
-    //     Ok(map) => Ok(map),
-    //     Err(_) => Err(InvalidJson),
-    // }
-    Ok(flatten_json_tokens(token_vec))
 }
 
 #[cfg(test)]
